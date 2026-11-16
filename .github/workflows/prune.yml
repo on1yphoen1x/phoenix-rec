@@ -1,0 +1,24 @@
+name: Prune old runs
+
+on:
+  workflow_dispatch:
+    inputs:
+      keep:
+        description: Number of most recent Build runs to keep
+        default: "1"
+
+permissions:
+  actions: write
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete old workflow runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh run list --workflow Build --limit 200 --json databaseId --jq '.[].databaseId' \
+            | tail -n +$(( ${{ inputs.keep }} + 1 )) \
+            | xargs -r -n1 gh run delete

@@ -40,8 +40,12 @@ jobs:
         if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           gh release create "build-${{ github.run_number }}" Phoenix.zip \
             --title "Phoenix build ${{ github.run_number }}" \
             --notes "Unzip, drag PhoenixRecording into Applications and open it." \
             --target "${{ github.sha }}" --latest
+          gh release list --limit 100 --json tagName --jq '.[].tagName' \
+            | grep -v "^build-${{ github.run_number }}$" \
+            | xargs -I{} gh release delete {} --yes --cleanup-tag
