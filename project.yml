@@ -1,0 +1,31 @@
+name: PhoenixRecording
+options:
+  bundleIdPrefix: app.phoenixclips
+  deploymentTarget:
+    macOS: "15.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.10"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+targets:
+  PhoenixRecording:
+    type: application
+    platform: macOS
+    sources:
+      - PhoenixRecording
+    info:
+      path: PhoenixRecording/Info.plist
+      properties:
+        LSUIElement: true
+        CFBundleDisplayName: Phoenix
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        NSScreenCaptureUsageDescription: Phoenix needs screen access to take screenshots and recordings.
+        NSMicrophoneUsageDescription: Phoenix records your microphone only when you turn it on for a recording.
+    entitlements:
+      path: PhoenixRecording/PhoenixRecording.entitlements
+      properties:
+        com.apple.security.app-sandbox: false
+        com.apple.security.network.client: true
+        com.apple.security.device.audio-input: true

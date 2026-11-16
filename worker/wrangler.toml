@@ -1,0 +1,22 @@
+name = "phoenix-share"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+
+routes = [
+  { pattern = "share.example.com", custom_domain = true }
+]
+
+[[r2_buckets]]
+binding = "CLIPS"
+bucket_name = "phoenix-clips"
+
+[vars]
+SITE_URL = "https://example.com"
+BUCKET_NAME = "phoenix-clips"
+MAX_UPLOAD_BYTES = "2147483648"
+
+# Secrets, set with `npx wrangler secret put <NAME>`:
+#   UPLOAD_TOKEN          long random string, also pasted into the app's Settings
+#   R2_ACCOUNT_ID         Cloudflare account ID
+#   R2_ACCESS_KEY_ID      R2 API token access key (Object Read & Write on phoenix-clips)
+#   R2_SECRET_ACCESS_KEY  R2 API token secret
