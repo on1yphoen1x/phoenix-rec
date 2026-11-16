@@ -74,7 +74,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 460)
+        .frame(minWidth: 460)
         .onDisappear(perform: saveSharing)
     }
 
@@ -87,6 +87,7 @@ struct SettingsView: View {
         guard panel.runModal() == .OK, let url = panel.url else { return }
         Preferences.shared.saveFolder = url
         saveFolder = url
+        controller.reloadLibrary()
     }
 
     private func saveSharing() {

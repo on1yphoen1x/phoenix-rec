@@ -117,7 +117,7 @@ struct ResultView: View {
         Task {
             defer { isUploading = false }
             do {
-                let url = try await Preferences.shared.makeUploader().upload(capture)
+                let url = try await Library.share(capture)
                 sharedURL = url
                 Clipboard.copyText(url.absoluteString)
                 status = "Link copied: \(url.absoluteString)"

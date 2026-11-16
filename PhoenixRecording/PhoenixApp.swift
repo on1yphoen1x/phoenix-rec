@@ -6,6 +6,11 @@ struct PhoenixApp: App {
     @StateObject private var updater = Updater()
 
     var body: some Scene {
+        Window("Phoenix", id: "main") {
+            MainView(controller: controller, updater: updater)
+        }
+        .defaultSize(width: 1040, height: 680)
+
         MenuBarExtra {
             MenuContent(controller: controller, updater: updater)
         } label: {
@@ -22,8 +27,12 @@ struct PhoenixApp: App {
 struct MenuContent: View {
     @ObservedObject var controller: CaptureController
     @ObservedObject var updater: Updater
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
+        Button("Open Phoenix") { showMainWindow(.dashboard) }
+        Divider()
+
         if let release = updater.available {
             Button(updater.isInstalling ? "Updating..." : "Install Update (build \(release.build))") {
                 Task {
@@ -64,12 +73,18 @@ struct MenuContent: View {
         }
         Button("Open Captures Folder") { NSWorkspace.shared.open(Preferences.shared.saveFolder) }
 
-        Button("Settings...") { controller.showSettings() }
+        Button("Settings...") { showMainWindow(.settings) }
             .keyboardShortcut(",")
         Button("Check for Updates (build \(updater.currentBuild))") {
             Task { await updater.check() }
         }
         Button("Quit Phoenix") { NSApp.terminate(nil) }
             .keyboardShortcut("q")
+    }
+
+    private func showMainWindow(_ section: MainSection) {
+        controller.section = section
+        NSApp.activate(ignoringOtherApps: true)
+        openWindow(id: "main")
     }
 }

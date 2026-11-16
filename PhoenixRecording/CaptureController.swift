@@ -8,6 +8,8 @@ final class CaptureController: ObservableObject {
     @Published private(set) var isRecording = false
     @Published private(set) var isSavingClip = false
     @Published private(set) var lastCapture: Capture?
+    @Published private(set) var captures: [Capture] = []
+    @Published var section = MainSection.dashboard
     @Published var recordsMicrophone = Preferences.shared.recordsMicrophone {
         didSet {
             Preferences.shared.recordsMicrophone = recordsMicrophone
@@ -19,7 +21,6 @@ final class CaptureController: ObservableObject {
     private let recorder = RecordingService()
     private let replay = ReplayBuffer()
     private let resultPanel = ResultPanelController()
-    private let settingsWindow = SettingsWindowController()
     private var hotKeys: [HotKey] = []
 
     init() {
@@ -128,8 +129,18 @@ final class CaptureController: ObservableObject {
         }
     }
 
-    func showSettings() {
-        settingsWindow.show(controller: self)
+    func reloadLibrary() {
+        captures = Library.load()
+    }
+
+    func trash(_ capture: Capture) {
+        do {
+            try FileManager.default.trashItem(at: capture.fileURL, resultingItemURL: nil)
+            Library.setShareLink(nil, for: capture)
+            reloadLibrary()
+        } catch {
+            present(error)
+        }
     }
 
     func showResult(for capture: Capture) {
@@ -138,6 +149,7 @@ final class CaptureController: ObservableObject {
 
     private func finish(_ capture: Capture) {
         lastCapture = capture
+        reloadLibrary()
         if Preferences.shared.copiesAfterCapture {
             Clipboard.copyFile(capture)
         }

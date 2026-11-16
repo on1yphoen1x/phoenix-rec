@@ -1,6 +1,6 @@
 # Phoenix
 
-Game clipping for macOS. Phoenix sits in the menu bar and keeps the last 15 to 120 seconds of your screen and game audio in a rolling buffer. Press Option-Shift-C and that stretch is saved as an MP4, copied to the clipboard and shown in a small panel with Copy and Copy Link buttons.
+Game clipping for macOS. Phoenix has a main window for browsing your clips and screenshots, plus a menu bar icon, and keeps the last 15 to 120 seconds of your screen and game audio in a rolling buffer. Press Option-Shift-C and that stretch is saved as an MP4, copied to the clipboard and shown in a small panel with Copy and Copy Link buttons.
 
 - 1080p, 1440p or 4K at 60 fps, H.264 so clips play everywhere, including Discord embeds
 - Game audio always, microphone optional (saved as a second audio track)

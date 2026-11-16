@@ -17,7 +17,6 @@ targets:
     info:
       path: PhoenixRecording/Info.plist
       properties:
-        LSUIElement: true
         CFBundleDisplayName: Phoenix
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         CFBundleShortVersionString: $(MARKETING_VERSION)
