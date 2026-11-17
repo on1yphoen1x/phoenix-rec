@@ -3,7 +3,7 @@ main = "src/index.js"
 compatibility_date = "2026-10-01"
 
 routes = [
-  { pattern = "flint.men", custom_domain = true }
+  { pattern = "flint.men/clip*", zone_name = "flint.men" }
 ]
 
 [[r2_buckets]]

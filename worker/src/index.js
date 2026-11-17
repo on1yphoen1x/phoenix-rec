@@ -141,8 +141,8 @@ ${head}
 <header class="site-header"><a class="site-header__link" href="/">FLINT</a></header>
 ${main}
 <footer class="site-footer">
-<a href="/privacy">Privacy Policy</a>
-<a href="/terms">Terms of Service</a>
+<a href="/clip/privacy">Privacy Policy</a>
+<a href="/clip/terms">Terms of Service</a>
 </footer>
 <aside class="cookie-banner" hidden>
 <p>This page stores one preference in your browser to remember this notice. No tracking or advertising cookies are used.</p>
@@ -347,10 +347,12 @@ export default {
       return new Response("Method not allowed", { status: 405 });
     }
 
-    if (parts.length === 0) return renderHome();
-    if (parts[0] === "privacy" && parts.length === 1) return renderPrivacy();
-    if (parts[0] === "terms" && parts.length === 1) return renderTerms();
-    if (parts[0] !== "clip" || !/^[a-z0-9]{8}$/.test(parts[1] ?? "")) return renderNotFound();
+    // The Worker only runs on flint.men/clip*, so the rest of the site is left alone.
+    if (parts[0] !== "clip") return renderNotFound();
+    if (parts.length === 1) return renderHome();
+    if (parts[1] === "privacy" && parts.length === 2) return renderPrivacy();
+    if (parts[1] === "terms" && parts.length === 2) return renderTerms();
+    if (!/^[a-z0-9]{8}$/.test(parts[1])) return renderNotFound();
     if (parts[2] === "file") return serveFile(parts[1], request, env);
     return serveViewer(parts[1], request, env);
   },

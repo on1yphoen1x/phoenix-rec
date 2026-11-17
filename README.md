@@ -26,7 +26,7 @@ Clips are saved to `~/Movies/Flint` by default. Change it, the clip length and q
 
 1. In the Cloudflare dashboard enable R2 and create a bucket (this repo's `wrangler.toml` expects one called `flint`)
 2. Create a Worker and paste in `worker/src/index.js`, or run `npx wrangler deploy` from the `worker` folder
-3. In the Worker's settings, bind the bucket as `CLIPS`, add a secret called `UPLOAD_TOKEN` (any long random string) and attach your domain
+3. In the Worker's settings, bind the bucket as `CLIPS`, add a secret called `UPLOAD_TOKEN` (any long random string) and add a route such as `your-domain/clip*` (a route leaves the rest of the site alone)
 4. In Flint Settings > Sharing, paste the same upload token. Set Upload URL to `https://your-domain/clip` if you aren't using the default
 
 Shared clips are kept forever, so links never break. The first 10 GB is free (roughly 440 thirty-second clips with shrinking on); after that R2 charges $0.015 per GB a month, and viewing is always free.
