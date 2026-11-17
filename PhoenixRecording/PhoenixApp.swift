@@ -33,6 +33,12 @@ struct MenuContent: View {
 
     var body: some View {
         Button("Open Ember") { showMainWindow(.dashboard) }
+        if controller.needsScreenPermission {
+            Button("Allow Screen Recording...") {
+                showMainWindow(.dashboard)
+                controller.requestScreenPermission()
+            }
+        }
         Divider()
 
         if let release = updater.available {

@@ -12,6 +12,9 @@ permissions:
 jobs:
   build:
     runs-on: macos-15
+    env:
+      SIGNING_P12: ${{ secrets.SIGNING_P12 }}
+      SIGNING_P12_PASSWORD: ${{ secrets.SIGNING_P12_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
 
@@ -27,6 +30,27 @@ jobs:
             CURRENT_PROJECT_VERSION=${{ github.run_number }} \
             CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=YES \
             build
+
+      # macOS ties Screen Recording permission to the app's signature. Ad-hoc
+      # signatures change every build, so without a fixed certificate each
+      # update would lose the permission.
+      - name: Sign with the Ember certificate
+        if: env.SIGNING_P12 != ''
+        run: |
+          KC="$RUNNER_TEMP/sign.keychain-db"
+          security create-keychain -p ci "$KC"
+          security set-keychain-settings "$KC"
+          security unlock-keychain -p ci "$KC"
+          echo "$SIGNING_P12" | base64 --decode > "$RUNNER_TEMP/sign.p12"
+          security import "$RUNNER_TEMP/sign.p12" -k "$KC" -P "$SIGNING_P12_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k ci "$KC"
+          security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+          security find-certificate -c "Ember Self-Signed" -p "$KC" > "$RUNNER_TEMP/sign.pem"
+          sudo security add-trusted-cert -d -r trustRoot -p codeSign -k /Library/Keychains/System.keychain "$RUNNER_TEMP/sign.pem"
+          codesign --force --timestamp=none --keychain "$KC" --sign "Ember Self-Signed" \
+            --entitlements PhoenixRecording/PhoenixRecording.entitlements \
+            build/Build/Products/Release/Ember.app
+          codesign -dr - build/Build/Products/Release/Ember.app
 
       - name: Package
         # Phoenix.zip keeps the old bundle name so copies from before the rename

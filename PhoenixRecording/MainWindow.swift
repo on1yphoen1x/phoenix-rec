@@ -45,6 +45,9 @@ struct MainView: View {
 
             VStack(alignment: .leading, spacing: 0) {
                 header
+                if controller.needsScreenPermission {
+                    PermissionBanner(controller: controller)
+                }
                 Divider().overlay(theme.border)
                 detail
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -103,6 +106,40 @@ struct MainView: View {
         case .settings:
             SettingsView(controller: controller, tab: settingsTab, themeID: $themeID)
         }
+    }
+}
+
+struct PermissionBanner: View {
+    @ObservedObject var controller: CaptureController
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 14) {
+            Image(systemName: "rectangle.dashed.badge.record")
+                .font(.system(size: 18, weight: .medium))
+                .foregroundStyle(theme.accent)
+                .frame(width: 38, height: 38)
+                .background(theme.accent.opacity(0.15), in: RoundedRectangle(cornerRadius: 9))
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Ember needs Screen Recording permission")
+                    .font(.callout.weight(.semibold))
+                Text("Turn on Ember in System Settings, then reopen it. You only need to do this once.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 12)
+            Button("Open System Settings") { controller.requestScreenPermission() }
+                .fixedSize()
+            Button("Quit & Reopen") { controller.relaunch() }
+                .buttonStyle(.borderedProminent)
+                .fixedSize()
+        }
+        .padding(14)
+        .background(theme.surface, in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(theme.accent.opacity(0.5)))
+        .padding(.horizontal, 28)
+        .padding(.bottom, 16)
     }
 }
 

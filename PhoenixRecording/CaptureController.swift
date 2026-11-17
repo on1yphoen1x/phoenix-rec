@@ -7,6 +7,7 @@ final class CaptureController: ObservableObject {
     @Published private(set) var isBuffering = false
     @Published private(set) var isRecording = false
     @Published private(set) var isSavingClip = false
+    @Published private(set) var needsScreenPermission = false
     @Published private(set) var lastCapture: Capture?
     @Published private(set) var captures: [Capture] = []
     @Published var section = MainSection.dashboard
@@ -35,21 +36,48 @@ final class CaptureController: ObservableObject {
                 self?.present(error)
             }
         }
-        if Preferences.shared.startsBufferOnLaunch {
+        if !CGPreflightScreenCaptureAccess() {
+            needsScreenPermission = true
+        } else if Preferences.shared.startsBufferOnLaunch {
             startBuffer()
         }
     }
 
     func startBuffer() {
+        guard CGPreflightScreenCaptureAccess() else {
+            needsScreenPermission = true
+            section = .dashboard
+            return
+        }
         Task {
             do {
                 let prefs = Preferences.shared
                 try await replay.start(seconds: prefs.clipSeconds, quality: prefs.clipQuality, includeMicrophone: recordsMicrophone)
                 isBuffering = true
             } catch {
-                present(error)
+                if CGPreflightScreenCaptureAccess() {
+                    present(error)
+                } else {
+                    needsScreenPermission = true
+                }
             }
         }
+    }
+
+    func requestScreenPermission() {
+        CGRequestScreenCaptureAccess()
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
+    // macOS only applies a new Screen Recording grant after the app restarts.
+    func relaunch() {
+        let reopen = Process()
+        reopen.executableURL = URL(fileURLWithPath: "/bin/sh")
+        reopen.arguments = ["-c", "sleep 1; open \"$0\"", Bundle.main.bundleURL.path]
+        try? reopen.run()
+        NSApp.terminate(nil)
     }
 
     func stopBuffer() {
