@@ -47,11 +47,13 @@ struct MainView: View {
                 header
                 if controller.needsScreenPermission {
                     PermissionBanner(controller: controller)
+                        .transition(.move(edge: .top).combined(with: .opacity))
                 }
                 Divider().overlay(theme.border)
                 detail
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+            .animation(.spring(duration: 0.35), value: controller.needsScreenPermission)
             .background(theme.background)
         }
         .ignoresSafeArea()
@@ -466,6 +468,8 @@ struct CaptureCard: View {
                     .font(.caption)
                     .foregroundStyle(status == nil ? AnyShapeStyle(.secondary) : AnyShapeStyle(theme.accent))
                     .lineLimit(1)
+                    .contentTransition(.opacity)
+                    .animation(.easeOut(duration: 0.2), value: status)
             }
 
             HStack(spacing: 8) {

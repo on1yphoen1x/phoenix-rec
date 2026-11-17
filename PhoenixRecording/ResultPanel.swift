@@ -6,8 +6,17 @@ final class ResultPanelController {
     private var panel: NSPanel?
     private var dismissTask: Task<Void, Never>?
 
+    private let slideDistance: CGFloat = 40
+
+    private var reducesMotion: Bool {
+        NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+    }
+
     func show(_ capture: Capture) {
-        panel?.close()
+        if let old = panel {
+            panel = nil
+            dismiss(old, duration: 0.15)
+        }
 
         let view = ResultView(capture: capture) { [weak self] in self?.close() }
         let panel = NSPanel(
@@ -26,8 +35,20 @@ final class ResultPanelController {
         if let screen = NSScreen.main?.visibleFrame {
             panel.setFrameOrigin(NSPoint(x: screen.maxX - 340, y: screen.minY + 20))
         }
+        let resting = panel.frame
+        if !reducesMotion {
+            panel.setFrameOrigin(NSPoint(x: resting.minX + slideDistance, y: resting.minY))
+        }
+        panel.alphaValue = 0
         panel.orderFrontRegardless()
         self.panel = panel
+
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.28
+            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            panel.animator().setFrame(resting, display: true)
+            panel.animator().alphaValue = 1
+        }
 
         dismissTask?.cancel()
         dismissTask = Task {
@@ -38,8 +59,24 @@ final class ResultPanelController {
 
     func close() {
         dismissTask?.cancel()
-        panel?.close()
-        panel = nil
+        guard let panel else { return }
+        self.panel = nil
+        dismiss(panel, duration: 0.22)
+    }
+
+    private func dismiss(_ panel: NSPanel, duration: TimeInterval) {
+        var target = panel.frame
+        if !reducesMotion {
+            target.origin.x += slideDistance
+        }
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = duration
+            context.timingFunction = CAMediaTimingFunction(name: .easeIn)
+            panel.animator().setFrame(target, display: true)
+            panel.animator().alphaValue = 0
+        } completionHandler: {
+            panel.close()
+        }
     }
 }
 
@@ -85,8 +122,10 @@ struct ResultView: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
         }
+        .animation(.easeOut(duration: 0.2), value: status)
         .padding(14)
         .frame(width: 320)
     }
