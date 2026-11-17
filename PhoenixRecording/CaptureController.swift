@@ -10,6 +10,7 @@ final class CaptureController: ObservableObject {
     @Published private(set) var needsScreenPermission = false
     @Published private(set) var isStartingBuffer = false
     @Published private(set) var captureOptions = CaptureOptions()
+    @Published private(set) var isLoadingOptions = false
     @Published private(set) var captureLabel = ""
     @Published private(set) var lastCapture: Capture?
     @Published private(set) var captures: [Capture] = []
@@ -75,10 +76,12 @@ final class CaptureController: ObservableObject {
 
     func refreshCaptureOptions() {
         guard CGPreflightScreenCaptureAccess() else { return }
+        isLoadingOptions = true
         Task {
             if let options = try? await CaptureTarget.options() {
                 captureOptions = options
             }
+            isLoadingOptions = false
         }
     }
 

@@ -76,7 +76,7 @@ final class ReplayBuffer: NSObject {
     }
 
     func start(seconds: Int, quality: ClipQuality, includeMicrophone: Bool,
-               video filter: SCContentFilter, audio audioFilter: SCContentFilter) async throws {
+               video filter: SCContentFilter, audio audioFilter: SCContentFilter?) async throws {
         try? FileManager.default.removeItem(at: workFolder)
         try FileManager.default.createDirectory(at: workFolder, withIntermediateDirectories: true)
 
@@ -99,21 +99,27 @@ final class ReplayBuffer: NSObject {
 
         // Audio runs on its own stream so it can follow a different filter from
         // the picture. Its video is the smallest ScreenCaptureKit allows and is
-        // never read.
+        // never read. With desktop audio off it only runs to carry the microphone.
         let audioConfig = SCStreamConfiguration()
         audioConfig.width = 2
         audioConfig.height = 2
         audioConfig.minimumFrameInterval = CMTime(value: 1, timescale: 1)
-        audioConfig.capturesAudio = true
+        audioConfig.capturesAudio = audioFilter != nil
         audioConfig.excludesCurrentProcessAudio = true
         audioConfig.sampleRate = 48_000
         audioConfig.channelCount = 2
         audioConfig.captureMicrophone = includeMicrophone
 
-        let audioStream = SCStream(filter: audioFilter, configuration: audioConfig, delegate: self)
-        try audioStream.addStreamOutput(self, type: .audio, sampleHandlerQueue: queue)
-        if includeMicrophone {
-            try audioStream.addStreamOutput(self, type: .microphone, sampleHandlerQueue: queue)
+        var audioStream: SCStream?
+        if audioFilter != nil || includeMicrophone {
+            let audio = SCStream(filter: audioFilter ?? filter, configuration: audioConfig, delegate: self)
+            if audioFilter != nil {
+                try audio.addStreamOutput(self, type: .audio, sampleHandlerQueue: queue)
+            }
+            if includeMicrophone {
+                try audio.addStreamOutput(self, type: .microphone, sampleHandlerQueue: queue)
+            }
+            audioStream = audio
         }
 
         queue.sync {
@@ -127,7 +133,7 @@ final class ReplayBuffer: NSObject {
 
         try await stream.startCapture()
         do {
-            try await audioStream.startCapture()
+            try await audioStream?.startCapture()
         } catch {
             try? await stream.stopCapture()
             throw error
@@ -168,8 +174,8 @@ final class ReplayBuffer: NSObject {
                 try videoTrack?.insertTimeRange(range, of: video, at: cursor)
             }
             let audio = try await asset.loadTracks(withMediaType: .audio)
-            if audio.indices.contains(0) { try gameTrack?.insertTimeRange(range, of: audio[0], at: cursor) }
-            if audio.indices.contains(1) { try micTrack?.insertTimeRange(range, of: audio[1], at: cursor) }
+            if audio.indices.contains(0) { try? gameTrack?.insertTimeRange(range, of: audio[0], at: cursor) }
+            if audio.indices.contains(1) { try? micTrack?.insertTimeRange(range, of: audio[1], at: cursor) }
             cursor = cursor + duration
         }
 

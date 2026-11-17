@@ -20,8 +20,17 @@ enum CaptureSource: String, CaseIterable, Identifiable {
 enum AudioSource: String, CaseIterable, Identifiable {
     case all = "All Audio"
     case app = "App Audio"
+    case off = "Off"
 
     var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .all: "All"
+        case .app: "App Only"
+        case .off: "Off"
+        }
+    }
 }
 
 struct CaptureOption: Identifiable, Hashable {
@@ -53,7 +62,7 @@ enum CaptureTargetError: LocalizedError {
 enum CaptureTarget {
     struct Resolved {
         let video: SCContentFilter
-        let audio: SCContentFilter
+        let audio: SCContentFilter?
         let label: String
     }
 
@@ -126,7 +135,7 @@ enum CaptureTarget {
             label = app.applicationName
         }
 
-        let audio: SCContentFilter
+        let audio: SCContentFilter?
         switch prefs.audioSource {
         case .all:
             audio = wholeDisplay
@@ -135,6 +144,8 @@ enum CaptureTarget {
                 throw CaptureTargetError.missing("The app you picked for audio")
             }
             audio = SCContentFilter(display: display, including: [app], exceptingWindows: [])
+        case .off:
+            audio = nil
         }
 
         return Resolved(video: video, audio: audio, label: label)

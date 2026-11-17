@@ -3,20 +3,14 @@ import SwiftUI
 struct ClippingCard: View {
     @ObservedObject var controller: CaptureController
     @Environment(\.theme) private var theme
-
-    @State private var source = Preferences.shared.captureSource
-    @State private var displayID = Preferences.shared.captureDisplayID
-    @State private var windowID = Preferences.shared.captureWindowID
-    @State private var appID = Preferences.shared.captureAppID
-    @State private var audioSource = Preferences.shared.audioSource
-    @State private var audioAppID = Preferences.shared.audioAppID
+    @State private var showsSetup = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .center, spacing: 18) {
                 startButton
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(statusTitle)
+                    Text(controller.isBuffering ? "Clipping \(controller.captureLabel)" : "Not clipping")
                         .font(.title3.weight(.semibold))
                         .lineLimit(1)
                     Text(statusDetail)
@@ -40,37 +34,17 @@ struct ClippingCard: View {
 
             Divider().overlay(theme.border)
 
-            VStack(alignment: .leading, spacing: 14) {
-                pickerRow(title: "Record") {
-                    Picker("", selection: $source) {
-                        ForEach(CaptureSource.allCases) { option in
-                            Label(option.rawValue, systemImage: option.symbol).tag(option)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                    .fixedSize()
-
-                    targetPicker
+            HStack(spacing: 18) {
+                summaryItem(symbol: Preferences.shared.captureSource.symbol,
+                            text: captureSummary)
+                summaryItem(symbol: audioSymbol, text: audioSummary)
+                Spacer(minLength: 12)
+                Button {
+                    showsSetup = true
+                } label: {
+                    Label("Clip Settings", systemImage: "slider.horizontal.3")
                 }
-
-                pickerRow(title: "Audio") {
-                    Picker("", selection: $audioSource) {
-                        ForEach(AudioSource.allCases) { Text($0.rawValue).tag($0) }
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                    .fixedSize()
-
-                    if audioSource == .app {
-                        optionPicker(selection: $audioAppID, options: controller.captureOptions.apps,
-                                     placeholder: "Choose an app")
-                    }
-
-                    Toggle("Microphone", isOn: $controller.recordsMicrophone)
-                        .toggleStyle(.checkbox)
-                        .fixedSize()
-                }
+                .fixedSize()
             }
         }
         .padding(22)
@@ -78,26 +52,21 @@ struct ClippingCard: View {
         .overlay(RoundedRectangle(cornerRadius: 18).stroke(controller.isBuffering ? theme.accent.opacity(0.6) : theme.border))
         .animation(.easeOut(duration: 0.25), value: controller.isBuffering)
         .onAppear { controller.refreshCaptureOptions() }
-        .onChange(of: source) { _, value in
-            Preferences.shared.captureSource = value
-            fillDefaultTarget()
-            controller.restartBufferIfRunning()
+        .sheet(isPresented: $showsSetup) {
+            ClippingSetupSheet(controller: controller)
+                .environment(\.theme, theme)
+                .tint(theme.accent)
+                .preferredColorScheme(theme.isDark ? .dark : .light)
         }
-        .onChange(of: displayID) { _, value in save { $0.captureDisplayID = value } }
-        .onChange(of: windowID) { _, value in save { $0.captureWindowID = value } }
-        .onChange(of: appID) { _, value in save { $0.captureAppID = value } }
-        .onChange(of: audioSource) { _, value in
-            Preferences.shared.audioSource = value
-            fillDefaultTarget()
-            controller.restartBufferIfRunning()
-        }
-        .onChange(of: audioAppID) { _, value in save { $0.audioAppID = value } }
-        .onChange(of: controller.captureOptions.apps) { _, _ in fillDefaultTarget() }
     }
 
     private var startButton: some View {
         Button {
-            controller.isBuffering ? controller.stopBuffer() : controller.startBuffer()
+            if controller.isBuffering {
+                controller.stopBuffer()
+            } else {
+                showsSetup = true
+            }
         } label: {
             HStack(spacing: 10) {
                 Image(systemName: controller.isBuffering ? "stop.fill" : "record.circle")
@@ -122,23 +91,6 @@ struct ClippingCard: View {
         .fixedSize()
     }
 
-    @ViewBuilder
-    private var targetPicker: some View {
-        switch source {
-        case .screen:
-            optionPicker(selection: $displayID, options: controller.captureOptions.displays, placeholder: "Main display")
-        case .window:
-            optionPicker(selection: $windowID, options: controller.captureOptions.windows, placeholder: "Choose a window")
-        case .app:
-            optionPicker(selection: $appID, options: controller.captureOptions.apps, placeholder: "Choose an app")
-        }
-    }
-
-    private var statusTitle: String {
-        if controller.isBuffering { return "Clipping \(controller.captureLabel)" }
-        return "Not clipping"
-    }
-
     private var statusDetail: String {
         let prefs = Preferences.shared
         if controller.isBuffering {
@@ -147,56 +99,39 @@ struct ClippingCard: View {
         return "Start clipping and Flint keeps the last \(prefs.clipSeconds) seconds, so you can save a moment after it happens."
     }
 
-    private func pickerRow<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
-        HStack(spacing: 12) {
-            Text(title)
-                .font(.callout.weight(.medium))
-                .foregroundStyle(.secondary)
-                .frame(width: 52, alignment: .leading)
-            content()
-            Spacer(minLength: 0)
-            Button {
-                controller.refreshCaptureOptions()
-            } label: {
-                Image(systemName: "arrow.clockwise")
-            }
-            .buttonStyle(.borderless)
-            .help("Refresh the list of windows and apps")
-            .opacity(title == "Record" ? 1 : 0)
-            .disabled(title != "Record")
-        }
-    }
-
-    private func optionPicker(selection: Binding<String>, options: [CaptureOption], placeholder: String) -> some View {
-        Picker("", selection: selection) {
-            if !options.contains(where: { $0.id == selection.wrappedValue }) {
-                Text(placeholder).tag(selection.wrappedValue)
-            }
-            ForEach(options) { option in
-                Text(option.name).lineLimit(1).tag(option.id)
-            }
-        }
-        .labelsHidden()
-        .frame(maxWidth: 280)
-    }
-
-    // Picking Window or App with nothing chosen yet selects the first one in the
-    // list, so Start Clipping works straight away.
-    private func fillDefaultTarget() {
+    private var captureSummary: String {
+        let prefs = Preferences.shared
         let options = controller.captureOptions
-        if source == .window, !options.windows.contains(where: { $0.id == windowID }), let first = options.windows.first {
-            windowID = first.id
-        }
-        if source == .app, !options.apps.contains(where: { $0.id == appID }), let first = options.apps.first {
-            appID = first.id
-        }
-        if audioSource == .app, !options.apps.contains(where: { $0.id == audioAppID }), let first = options.apps.first {
-            audioAppID = first.id
+        switch prefs.captureSource {
+        case .screen:
+            return options.displays.first { $0.id == prefs.captureDisplayID }?.name ?? "Main display"
+        case .window:
+            return options.windows.first { $0.id == prefs.captureWindowID }?.name ?? "A window"
+        case .app:
+            return options.apps.first { $0.id == prefs.captureAppID }?.name ?? "An app"
         }
     }
 
-    private func save(_ update: (Preferences) -> Void) {
-        update(Preferences.shared)
-        controller.restartBufferIfRunning()
+    private var audioSummary: String {
+        let prefs = Preferences.shared
+        let desktop: String
+        switch prefs.audioSource {
+        case .all: desktop = "All audio"
+        case .app: desktop = controller.captureOptions.apps.first { $0.id == prefs.audioAppID }?.name ?? "One app"
+        case .off: desktop = "No desktop audio"
+        }
+        return controller.recordsMicrophone ? "\(desktop) + mic" : desktop
+    }
+
+    private var audioSymbol: String {
+        Preferences.shared.audioSource == .off ? "speaker.slash" : "speaker.wave.2"
+    }
+
+    private func summaryItem(symbol: String, text: String) -> some View {
+        Label(text, systemImage: symbol)
+            .font(.callout)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .truncationMode(.middle)
     }
 }
