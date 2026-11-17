@@ -17,6 +17,8 @@ final class Preferences {
         set { defaults.set(newValue.path, forKey: "saveFolder") }
     }
 
+    static let defaultUploadEndpoint = URL(string: "https://flint.men/clip")!
+
     var uploadEndpoint: URL? {
         get { defaults.string(forKey: "uploadEndpoint").flatMap(URL.init(string:)) }
         set { defaults.set(newValue?.absoluteString, forKey: "uploadEndpoint") }

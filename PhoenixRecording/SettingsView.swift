@@ -280,10 +280,10 @@ struct SettingsView: View {
     @ViewBuilder
     private var sharing: some View {
         SettingsCard(symbol: "icloud.and.arrow.up", title: "Share Links",
-                     subtitle: "Copy Link uploads to your own Cloudflare storage") {
+                     subtitle: "Copy Link uploads to your own Cloudflare storage. Leave the URL empty to use flint.men") {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Upload URL").font(.callout)
-                TextField("", text: $endpoint, prompt: Text("https://share.example.com"))
+                TextField("", text: $endpoint, prompt: Text(Preferences.defaultUploadEndpoint.absoluteString))
                     .textFieldStyle(.roundedBorder)
             }
             VStack(alignment: .leading, spacing: 6) {

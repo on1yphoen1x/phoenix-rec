@@ -7,13 +7,25 @@ enum ShareCompressor {
     static let maxHeight = 1080
     static let videoBitrate = 6_000_000
     static let audioBitrate = 128_000
+    static let maxUploadBytes = 95_000_000
 
-    static func needsCompressing(_ url: URL) async throws -> Bool {
+    static func needsCompressing(_ url: URL, shrinking: Bool) async throws -> Bool {
+        let fileSize = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
+        if fileSize > maxUploadBytes { return true }
+        guard shrinking else { return false }
         let asset = AVURLAsset(url: url)
         guard let track = try await asset.loadTracks(withMediaType: .video).first else { return false }
         let (size, bitrate) = try await track.load(.naturalSize, .estimatedDataRate)
         let audioCount = try await asset.loadTracks(withMediaType: .audio).count
         return Int(size.height) > maxHeight || Int(bitrate) > videoBitrate + 1_000_000 || audioCount > 1
+    }
+
+    // Long recordings get a lower bitrate so the upload still fits in one
+    // request. 10% is left over for the MP4 container and keyframe spikes.
+    static func bitrate(for duration: CMTime) -> Int {
+        let seconds = max(1, duration.seconds)
+        let budget = Int(Double(maxUploadBytes) * 8 * 0.9 / seconds) - audioBitrate
+        return max(500_000, min(videoBitrate, budget))
     }
 
     static func compress(_ source: URL) async throws -> URL {
@@ -26,6 +38,7 @@ enum ShareCompressor {
         }
         let audioTracks = try await asset.loadTracks(withMediaType: .audio)
         let (naturalSize, frameRate) = try await videoTrack.load(.naturalSize, .nominalFrameRate)
+        let duration = try await asset.load(.duration)
 
         let height = min(maxHeight, Int(naturalSize.height))
         let width = (Int(naturalSize.width) * height / Int(naturalSize.height)) & ~1
@@ -47,7 +60,7 @@ enum ShareCompressor {
             AVVideoWidthKey: width,
             AVVideoHeightKey: height,
             AVVideoCompressionPropertiesKey: [
-                AVVideoAverageBitRateKey: videoBitrate,
+                AVVideoAverageBitRateKey: bitrate(for: duration),
                 AVVideoExpectedSourceFrameRateKey: max(30, Int(frameRate.rounded())),
                 AVVideoMaxKeyFrameIntervalKey: 120,
                 AVVideoProfileLevelKey: AVVideoProfileLevelH264HighAutoLevel,

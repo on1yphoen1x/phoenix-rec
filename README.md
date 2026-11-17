@@ -24,26 +24,10 @@ Clips are saved to `~/Movies/Flint` by default. Change it, the clip length and q
 
 ## Setting up share links
 
-1. In the Cloudflare dashboard open R2 and enable it (it asks for a card; the first 10 GB a month is free)
-2. From the `worker` folder:
-
-```sh
-npm install
-npx wrangler r2 bucket create phoenix-clips
-```
-
-3. In the dashboard go to R2, Manage API tokens, and create a token with Object Read & Write on `phoenix-clips`. Note the access key ID, secret and your account ID
-4. Set the secrets. For the upload token, generate something long with `openssl rand -hex 32`:
-
-```sh
-npx wrangler secret put UPLOAD_TOKEN
-npx wrangler secret put R2_ACCOUNT_ID
-npx wrangler secret put R2_ACCESS_KEY_ID
-npx wrangler secret put R2_SECRET_ACCESS_KEY
-npx wrangler deploy
-```
-
-5. In Flint Settings, set Upload URL to your share address, for example `https://share.example.com` and paste the same upload token
+1. In the Cloudflare dashboard enable R2 and create a bucket (this repo's `wrangler.toml` expects one called `flint`)
+2. Create a Worker and paste in `worker/src/index.js`, or run `npx wrangler deploy` from the `worker` folder
+3. In the Worker's settings, bind the bucket as `CLIPS`, add a secret called `UPLOAD_TOKEN` (any long random string) and attach your domain
+4. In Flint Settings > Sharing, paste the same upload token. Set Upload URL to `https://your-domain/clip` if you aren't using the default
 
 Shared clips are kept forever, so links never break. The first 10 GB is free (roughly 440 thirty-second clips with shrinking on); after that R2 charges $0.015 per GB a month, and viewing is always free.
 
@@ -51,4 +35,4 @@ Shared clips are kept forever, so links never break. The first 10 GB is free (ro
 
 ScreenCaptureKit streams frames from the main display (Flint itself is excluded). `ReplayBuffer` encodes them into five-second MP4 segments in a temporary folder and deletes segments older than the clip length. Saving a clip closes the open segment, joins the newest segments with `AVMutableComposition` and exports them without re-encoding, trimmed to the clip length.
 
-Uploads skip the Worker: the app asks the Worker for a signed R2 URL and sends the file directly to R2, which avoids the 100 MB request limit on Cloudflare's free plan.
+Uploads go through the Worker straight into R2. The free plan caps a request at 100 MB, so the app lowers the bitrate of long recordings to keep every upload under 95 MB.
