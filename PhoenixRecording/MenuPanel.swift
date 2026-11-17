@@ -71,7 +71,7 @@ struct MenuPanel: View {
                     }
                 }
                 if let last = controller.lastCapture {
-                    PanelRow(symbol: "photo.on.rectangle", title: "Show Last Capture", subtitle: last.url.lastPathComponent) {
+                    PanelRow(symbol: "photo.on.rectangle", title: "Show Last Capture", subtitle: last.fileURL.lastPathComponent) {
                         closePanel()
                         controller.showResult(for: last)
                     }
