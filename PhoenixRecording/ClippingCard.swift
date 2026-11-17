@@ -144,7 +144,7 @@ struct ClippingCard: View {
         if controller.isBuffering {
             return "Keeping the last \(prefs.clipSeconds) seconds at \(prefs.clipQuality.rawValue) 60 fps, ready to save."
         }
-        return "Start clipping and Ember keeps the last \(prefs.clipSeconds) seconds, so you can save a moment after it happens."
+        return "Start clipping and Flint keeps the last \(prefs.clipSeconds) seconds, so you can save a moment after it happens."
     }
 
     private func pickerRow<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {

@@ -6,7 +6,7 @@ struct PhoenixApp: App {
     @StateObject private var updater = Updater()
 
     var body: some Scene {
-        Window("Ember", id: "main") {
+        Window("Flint", id: "main") {
             MainView(controller: controller, updater: updater)
         }
         .windowStyle(.hiddenTitleBar)
@@ -32,7 +32,7 @@ struct MenuContent: View {
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
-        Button("Open Ember") { showMainWindow(.dashboard) }
+        Button("Open Flint") { showMainWindow(.dashboard) }
         if controller.needsScreenPermission {
             Button("Allow Screen Recording...") {
                 showMainWindow(.dashboard)
@@ -86,7 +86,7 @@ struct MenuContent: View {
         Button("Check for Updates (build \(updater.currentBuild))") {
             Task { await updater.check() }
         }
-        Button("Quit Ember") { NSApp.terminate(nil) }
+        Button("Quit Flint") { NSApp.terminate(nil) }
             .keyboardShortcut("q")
     }
 

@@ -42,7 +42,7 @@ enum CaptureTargetError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .noDisplay: "Couldn't find a display to record."
-        case .missing(let what): "\(what) isn't open any more. Pick something else to record in Ember."
+        case .missing(let what): "\(what) isn't open any more. Pick something else to record in Flint."
         }
     }
 }

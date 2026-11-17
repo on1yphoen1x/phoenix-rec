@@ -25,7 +25,7 @@ enum MainSection: String, CaseIterable, Identifiable {
         case .clips: "Every clip saved on this Mac"
         case .screenshots: "Screenshots saved on this Mac"
         case .shared: "Captures you've uploaded with Copy Link"
-        case .settings: "Clipping, audio, sharing and how Ember looks"
+        case .settings: "Clipping, audio, sharing and how Flint looks"
         }
     }
 }
@@ -123,9 +123,9 @@ struct PermissionBanner: View {
                 .frame(width: 38, height: 38)
                 .background(theme.accent.opacity(0.15), in: RoundedRectangle(cornerRadius: 9))
             VStack(alignment: .leading, spacing: 2) {
-                Text("Ember needs Screen Recording permission")
+                Text("Flint needs Screen Recording permission")
                     .font(.callout.weight(.semibold))
-                Text("Turn on Ember in System Settings, then reopen it. You only need to do this once.")
+                Text("Turn on Flint in System Settings, then reopen it. You only need to do this once.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -156,7 +156,7 @@ struct Sidebar: View {
                 Image(nsImage: NSApp.applicationIconImage)
                     .resizable()
                     .frame(width: 34, height: 34)
-                Text("Ember")
+                Text("Flint")
                     .font(.system(size: 19, weight: .semibold))
             }
             .padding(.horizontal, 18)

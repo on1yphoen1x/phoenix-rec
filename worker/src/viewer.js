@@ -169,7 +169,7 @@ export function renderViewer({ siteURL, id, fileURL, pageURL, contentType, uploa
   const html = page({
     siteURL,
     title: `${title} ${id}`,
-    head: `<meta property="og:title" content="${title} shared from Ember">
+    head: `<meta property="og:title" content="${title} shared from Flint">
 <meta property="og:url" content="${pageURL}">
 ${meta}`,
     main: `<main class="clip">

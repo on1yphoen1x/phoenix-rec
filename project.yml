@@ -16,17 +16,17 @@ targets:
       - PhoenixRecording
     settings:
       base:
-        PRODUCT_NAME: Ember
+        PRODUCT_NAME: Flint
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         PRODUCT_BUNDLE_IDENTIFIER: app.phoenixclips.PhoenixRecording
     info:
       path: PhoenixRecording/Info.plist
       properties:
-        CFBundleDisplayName: Ember
+        CFBundleDisplayName: Flint
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         CFBundleShortVersionString: $(MARKETING_VERSION)
-        NSScreenCaptureUsageDescription: Ember needs screen access to take screenshots and recordings.
-        NSMicrophoneUsageDescription: Ember records your microphone only when you turn it on for a recording.
+        NSScreenCaptureUsageDescription: Flint needs screen access to take screenshots and recordings.
+        NSMicrophoneUsageDescription: Flint records your microphone only when you turn it on for a recording.
     entitlements:
       path: PhoenixRecording/PhoenixRecording.entitlements
       properties:
