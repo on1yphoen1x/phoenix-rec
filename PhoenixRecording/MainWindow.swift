@@ -18,35 +18,64 @@ enum MainSection: String, CaseIterable, Identifiable {
         case .settings: "gearshape"
         }
     }
+
+    var subtitle: String {
+        switch self {
+        case .dashboard: "Your replay buffer and latest captures"
+        case .clips: "Every clip saved on this Mac"
+        case .screenshots: "Screenshots saved on this Mac"
+        case .shared: "Captures you've uploaded with Copy Link"
+        case .settings: "Clipping, audio, sharing and how Phoenix looks"
+        }
+    }
 }
 
 struct MainView: View {
     @ObservedObject var controller: CaptureController
     @ObservedObject var updater: Updater
+    @AppStorage("theme") private var themeID = Theme.all[0].id
+    @State private var settingsTab = SettingsTab.clipping
+
+    private var theme: Theme { Theme.named(themeID) }
 
     var body: some View {
-        NavigationSplitView {
-            List(selection: $controller.section) {
-                Section {
-                    ForEach([MainSection.dashboard, .clips, .screenshots, .shared]) { section in
-                        Label(section.rawValue, systemImage: section.symbol).tag(section)
-                    }
-                }
-                Section {
-                    Label(MainSection.settings.rawValue, systemImage: MainSection.settings.symbol)
-                        .tag(MainSection.settings)
-                }
+        HStack(spacing: 0) {
+            Sidebar(controller: controller, updater: updater)
+                .frame(width: 230)
+
+            VStack(alignment: .leading, spacing: 0) {
+                header
+                Divider().overlay(theme.border)
+                detail
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 260)
-            .safeAreaInset(edge: .bottom) {
-                SidebarFooter(controller: controller, updater: updater)
-            }
-        } detail: {
-            detail
-                .navigationTitle(controller.section.rawValue)
+            .background(theme.background)
         }
-        .frame(minWidth: 860, minHeight: 560)
+        .ignoresSafeArea()
+        .environment(\.theme, theme)
+        .tint(theme.accent)
+        .preferredColorScheme(theme.isDark ? .dark : .light)
+        .frame(minWidth: 900, minHeight: 580)
         .onAppear { controller.reloadLibrary() }
+    }
+
+    private var header: some View {
+        HStack(alignment: .center, spacing: 16) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(controller.section.rawValue)
+                    .font(.system(size: 22, weight: .semibold))
+                Text(controller.section == .settings ? settingsTab.subtitle : controller.section.subtitle)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            if controller.section == .settings {
+                SettingsTabBar(selection: $settingsTab)
+            }
+        }
+        .padding(.horizontal, 28)
+        .padding(.top, 40)
+        .padding(.bottom, 18)
     }
 
     @ViewBuilder
@@ -67,54 +96,155 @@ struct MainView: View {
                         emptyTitle: "Nothing shared yet",
                         emptyMessage: "Captures appear here after you press Copy Link on them.")
         case .settings:
-            ScrollView {
-                SettingsView(controller: controller)
-                    .frame(maxWidth: 560)
-                    .frame(maxWidth: .infinity)
-            }
+            SettingsView(controller: controller, tab: settingsTab, themeID: $themeID)
         }
     }
 }
 
-struct SidebarFooter: View {
+struct Sidebar: View {
     @ObservedObject var controller: CaptureController
     @ObservedObject var updater: Updater
+    @Environment(\.theme) private var theme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 10) {
+                Image(systemName: "flame.fill")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 30, height: 30)
+                    .background(theme.accent.gradient, in: RoundedRectangle(cornerRadius: 8))
+                Text("Phoenix")
+                    .font(.system(size: 19, weight: .semibold))
+            }
+            .padding(.horizontal, 18)
+            .padding(.top, 52)
+            .padding(.bottom, 18)
+
+            Divider().overlay(theme.border).padding(.horizontal, 18)
+
+            VStack(spacing: 4) {
+                ForEach([MainSection.dashboard, .clips, .screenshots, .shared]) { section in
+                    SidebarItem(section: section, selection: $controller.section)
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.top, 14)
+
+            Divider().overlay(theme.border).padding(.horizontal, 18).padding(.vertical, 12)
+
+            SidebarItem(section: .settings, selection: $controller.section)
+                .padding(.horizontal, 10)
+
+            Spacer(minLength: 0)
+
+            footer
+        }
+        .frame(maxHeight: .infinity, alignment: .top)
+        .background {
+            ZStack(alignment: .bottom) {
+                theme.sidebarGradient
+                SidebarScenery(theme: theme)
+                    .frame(height: 260)
+                    .opacity(0.9)
+            }
+        }
+        .overlay(alignment: .trailing) {
+            Rectangle().fill(theme.border).frame(width: 1)
+        }
+    }
+
+    private var footer: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
                 Circle()
-                    .fill(controller.isBuffering ? Color.green : Color.secondary)
+                    .fill(controller.isBuffering ? Color.green : Color.secondary.opacity(0.6))
                     .frame(width: 8, height: 8)
                 Text(controller.isBuffering ? "Replay buffer on" : "Replay buffer off")
-                    .font(.callout)
+                    .font(.callout.weight(.medium))
+                Spacer()
+                Toggle("", isOn: Binding(
+                    get: { controller.isBuffering },
+                    set: { $0 ? controller.startBuffer() : controller.stopBuffer() }
+                ))
+                .toggleStyle(.switch)
+                .controlSize(.mini)
+                .labelsHidden()
             }
 
-            if let release = updater.available {
-                Button(updater.isInstalling ? "Updating..." : "Install build \(release.build)") {
-                    Task {
-                        do { try await updater.install() } catch { controller.present(error) }
+            HStack {
+                Text("Build \(updater.currentBuild)")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                Spacer()
+                if let release = updater.available {
+                    Button(updater.isInstalling ? "Updating..." : "Install build \(release.build)") {
+                        Task {
+                            do { try await updater.install() } catch { controller.present(error) }
+                        }
                     }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                    .disabled(updater.isInstalling)
+                } else {
+                    Button("Check for Updates") {
+                        Task { await updater.check() }
+                    }
+                    .buttonStyle(.plain)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(theme.accent)
                 }
-                .disabled(updater.isInstalling)
-            } else {
-                Button("Check for Updates") {
-                    Task { await updater.check() }
-                }
-                .buttonStyle(.link)
             }
-
-            Text("Build \(updater.currentBuild)")
-                .font(.caption)
-                .foregroundStyle(.secondary)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(theme.border))
+        .padding(12)
+    }
+}
+
+struct SidebarItem: View {
+    let section: MainSection
+    @Binding var selection: MainSection
+    @Environment(\.theme) private var theme
+    @State private var isHovering = false
+
+    private var isSelected: Bool { selection == section }
+
+    var body: some View {
+        Button {
+            selection = section
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: section.symbol)
+                    .font(.system(size: 14, weight: .medium))
+                    .frame(width: 20)
+                    .foregroundStyle(isSelected ? AnyShapeStyle(theme.accent) : AnyShapeStyle(.secondary))
+                Text(section.rawValue)
+                    .font(.system(size: 14, weight: isSelected ? .semibold : .regular))
+                Spacer()
+                if isSelected {
+                    Capsule()
+                        .fill(theme.accent)
+                        .frame(width: 3, height: 16)
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 9)
+            .contentShape(Rectangle())
+            .background {
+                RoundedRectangle(cornerRadius: 9)
+                    .fill(isSelected ? theme.accent.opacity(0.18) : (isHovering ? Color.primary.opacity(0.06) : .clear))
+            }
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovering = $0 }
     }
 }
 
 struct DashboardView: View {
     @ObservedObject var controller: CaptureController
+    @Environment(\.theme) private var theme
 
     private var clips: [Capture] { controller.captures.filter { $0.kind.isVideo } }
     private var screenshots: [Capture] { controller.captures.filter { !$0.kind.isVideo } }
@@ -124,39 +254,51 @@ struct DashboardView: View {
             VStack(alignment: .leading, spacing: 24) {
                 HStack(spacing: 12) {
                     if controller.isBuffering {
-                        Button("Save Clip") { controller.saveClip() }
-                            .buttonStyle(.borderedProminent)
-                            .disabled(controller.isSavingClip)
-                        Button("Turn Off Replay Buffer") { controller.stopBuffer() }
+                        Button { controller.saveClip() } label: {
+                            Label("Save Clip", systemImage: "record.circle")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(controller.isSavingClip)
                     } else {
-                        Button("Turn On Replay Buffer") { controller.startBuffer() }
-                            .buttonStyle(.borderedProminent)
+                        Button { controller.startBuffer() } label: {
+                            Label("Turn On Replay Buffer", systemImage: "dot.circle.viewfinder")
+                        }
+                        .buttonStyle(.borderedProminent)
                     }
-                    Button("Take Screenshot") { controller.takeScreenshot(.area) }
+                    Button { controller.takeScreenshot(.area) } label: {
+                        Label("Take Screenshot", systemImage: "camera.viewfinder")
+                    }
                     Spacer()
-                    Button("Open Folder") { NSWorkspace.shared.open(Preferences.shared.saveFolder) }
+                    Button { NSWorkspace.shared.open(Preferences.shared.saveFolder) } label: {
+                        Label("Open Folder", systemImage: "folder")
+                    }
                 }
                 .controlSize(.large)
 
-                HStack(spacing: 12) {
-                    StatTile(title: "Clips", value: "\(clips.count)")
-                    StatTile(title: "Screenshots", value: "\(screenshots.count)")
-                    StatTile(title: "On disk", value: diskUsage)
-                    StatTile(title: "Shared", value: "\(controller.captures.filter { Library.shareLink(for: $0) != nil }.count)")
+                HStack(spacing: 14) {
+                    StatTile(title: "Clips", value: "\(clips.count)", symbol: "play.rectangle")
+                    StatTile(title: "Screenshots", value: "\(screenshots.count)", symbol: "photo")
+                    StatTile(title: "On disk", value: diskUsage, symbol: "internaldrive")
+                    StatTile(title: "Shared", value: "\(controller.captures.filter { Library.shareLink(for: $0) != nil }.count)",
+                             symbol: "link")
                 }
 
-                VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: 12) {
                     Text("Recent")
                         .font(.title3.weight(.semibold))
                     if controller.captures.isEmpty {
                         Text("Your clips and screenshots show up here. Press Option-Shift-C to save a clip or Option-Shift-4 for a screenshot.")
                             .foregroundStyle(.secondary)
+                            .padding(18)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(theme.surface, in: RoundedRectangle(cornerRadius: 14))
+                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(theme.border))
                     } else {
                         CaptureCards(controller: controller, captures: Array(controller.captures.prefix(8)))
                     }
                 }
             }
-            .padding(24)
+            .padding(28)
         }
     }
 
@@ -169,19 +311,29 @@ struct DashboardView: View {
 struct StatTile: View {
     let title: String
     let value: String
+    let symbol: String
+    @Environment(\.theme) private var theme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .font(.callout)
-                .foregroundStyle(.secondary)
-            Text(value)
-                .font(.title2.weight(.semibold))
-                .monospacedDigit()
+        HStack(spacing: 12) {
+            Image(systemName: symbol)
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(theme.accent)
+                .frame(width: 34, height: 34)
+                .background(theme.accent.opacity(0.15), in: RoundedRectangle(cornerRadius: 9))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(value)
+                    .font(.title3.weight(.semibold))
+                    .monospacedDigit()
+                Text(title)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
-        .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 10))
+        .background(theme.surface, in: RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(theme.border))
     }
 }
 
@@ -197,7 +349,7 @@ struct CaptureGrid: View {
         } else {
             ScrollView {
                 CaptureCards(controller: controller, captures: captures)
-                    .padding(24)
+                    .padding(28)
             }
         }
     }
@@ -207,7 +359,7 @@ struct CaptureCards: View {
     @ObservedObject var controller: CaptureController
     let captures: [Capture]
 
-    private let columns = [GridItem(.adaptive(minimum: 220, maximum: 320), spacing: 16)]
+    private let columns = [GridItem(.adaptive(minimum: 230, maximum: 320), spacing: 16)]
 
     var body: some View {
         LazyVGrid(columns: columns, alignment: .leading, spacing: 16) {
@@ -221,42 +373,57 @@ struct CaptureCards: View {
 struct CaptureCard: View {
     @ObservedObject var controller: CaptureController
     let capture: Capture
+    @Environment(\.theme) private var theme
 
     @State private var thumbnail: NSImage?
     @State private var status: String?
     @State private var isUploading = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ZStack {
+        VStack(alignment: .leading, spacing: 10) {
+            ZStack(alignment: .topLeading) {
                 Rectangle().fill(.black)
                 if let thumbnail {
                     Image(nsImage: thumbnail)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
                 if capture.kind.isVideo {
-                    Image(systemName: "play.circle.fill")
-                        .font(.system(size: 34))
-                        .foregroundStyle(.white.opacity(0.85))
+                    Image(systemName: "play.fill")
+                        .font(.system(size: 16))
+                        .foregroundStyle(.white)
+                        .frame(width: 40, height: 40)
+                        .background(.black.opacity(0.45), in: Circle())
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+                if Library.shareLink(for: capture) != nil {
+                    Label("Shared", systemImage: "link")
+                        .font(.caption2.weight(.semibold))
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
+                        .background(theme.accent, in: Capsule())
+                        .foregroundStyle(.white)
+                        .padding(8)
                 }
             }
             .aspectRatio(16 / 9, contentMode: .fit)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .clipShape(RoundedRectangle(cornerRadius: 9))
             .onTapGesture(count: 2) { NSWorkspace.shared.open(capture.fileURL) }
             .onDrag { NSItemProvider(contentsOf: capture.fileURL) ?? NSItemProvider() }
 
-            Text(capture.fileURL.deletingPathExtension().lastPathComponent)
-                .font(.callout.weight(.medium))
-                .lineLimit(1)
-                .truncationMode(.middle)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(capture.fileURL.deletingPathExtension().lastPathComponent)
+                    .font(.callout.weight(.medium))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Text(status ?? detailLine)
+                    .font(.caption)
+                    .foregroundStyle(status == nil ? AnyShapeStyle(.secondary) : AnyShapeStyle(theme.accent))
+                    .lineLimit(1)
+            }
 
-            Text(status ?? detailLine)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-
-            HStack {
+            HStack(spacing: 8) {
                 Button("Copy") {
                     Clipboard.copyFile(capture)
                     flash(capture.kind.isVideo ? "Video copied" : "Image copied")
@@ -273,12 +440,14 @@ struct CaptureCard: View {
                     Image(systemName: "ellipsis")
                 }
                 .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
                 .fixedSize()
             }
             .controlSize(.small)
         }
         .padding(10)
-        .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 12))
+        .background(theme.surface, in: RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(theme.border))
         .task(id: capture.fileURL) {
             thumbnail = await Library.thumbnail(for: capture, size: CGSize(width: 320, height: 180))
         }
@@ -287,8 +456,7 @@ struct CaptureCard: View {
     private var detailLine: String {
         let size = ByteCountFormatter.string(fromByteCount: Int64(Library.size(of: capture)), countStyle: .file)
         let date = capture.createdAt.formatted(date: .abbreviated, time: .shortened)
-        let shared = Library.shareLink(for: capture) == nil ? "" : " \u{00B7} Shared"
-        return "\(date) \u{00B7} \(size)\(shared)"
+        return "\(date) \u{00B7} \(size)"
     }
 
     private func share() {

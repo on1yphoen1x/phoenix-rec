@@ -9,7 +9,8 @@ struct PhoenixApp: App {
         Window("Phoenix", id: "main") {
             MainView(controller: controller, updater: updater)
         }
-        .defaultSize(width: 1040, height: 680)
+        .windowStyle(.hiddenTitleBar)
+        .defaultSize(width: 1120, height: 720)
 
         MenuBarExtra {
             MenuContent(controller: controller, updater: updater)

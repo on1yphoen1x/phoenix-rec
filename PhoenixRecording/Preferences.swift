@@ -47,6 +47,21 @@ final class Preferences {
         set { defaults.set(newValue, forKey: "shrinksSharedClips") }
     }
 
+    var playsSaveSound: Bool {
+        get { defaults.object(forKey: "playsSaveSound") as? Bool ?? true }
+        set { defaults.set(newValue, forKey: "playsSaveSound") }
+    }
+
+    var saveSoundName: String {
+        get { defaults.string(forKey: "saveSoundName") ?? "Tink" }
+        set { defaults.set(newValue, forKey: "saveSoundName") }
+    }
+
+    var saveSoundVolume: Double {
+        get { defaults.object(forKey: "saveSoundVolume") as? Double ?? 1 }
+        set { defaults.set(newValue, forKey: "saveSoundVolume") }
+    }
+
     var startsBufferOnLaunch: Bool {
         get { defaults.object(forKey: "startsBufferOnLaunch") as? Bool ?? true }
         set { defaults.set(newValue, forKey: "startsBufferOnLaunch") }

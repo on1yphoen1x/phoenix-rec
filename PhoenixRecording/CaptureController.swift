@@ -73,7 +73,9 @@ final class CaptureController: ObservableObject {
             return
         }
         isSavingClip = true
-        NSSound(named: "Tink")?.play()
+        if Preferences.shared.playsSaveSound {
+            SaveSound.play()
+        }
 
         Task {
             defer { isSavingClip = false }
