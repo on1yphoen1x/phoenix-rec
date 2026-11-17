@@ -13,7 +13,7 @@ final class Updater: ObservableObject {
 
         var errorDescription: String? {
             switch self {
-            case .notInstalled: "Move Phoenix into the Applications folder first, then try updating again."
+            case .notInstalled: "Move Ember into the Applications folder first, then try updating again."
             case .badArchive: "The downloaded update didn't contain the app."
             }
         }
@@ -59,7 +59,8 @@ final class Updater: ObservableObject {
               (response as? HTTPURLResponse)?.statusCode == 200,
               let payload = try? JSONDecoder().decode(Payload.self, from: data),
               let build = Int(payload.tag_name.replacingOccurrences(of: "build-", with: "")),
-              let asset = payload.assets.first(where: { $0.name == "Phoenix.zip" }) else { return false }
+              let asset = payload.assets.first(where: { $0.name == "Ember.zip" })
+                ?? payload.assets.first(where: { $0.name == "Phoenix.zip" }) else { return false }
 
         available = build > currentBuild ? Release(build: build, downloadURL: asset.browser_download_url) : nil
         return true
@@ -80,17 +81,20 @@ final class Updater: ObservableObject {
         defer { isInstalling = false }
 
         let workFolder = FileManager.default.temporaryDirectory
-            .appendingPathComponent("PhoenixUpdate-\(release.build)", isDirectory: true)
+            .appendingPathComponent("EmberUpdate-\(release.build)", isDirectory: true)
         try? FileManager.default.removeItem(at: workFolder)
         try FileManager.default.createDirectory(at: workFolder, withIntermediateDirectories: true)
 
         let (downloaded, _) = try await URLSession.shared.download(from: release.downloadURL)
-        let archive = workFolder.appendingPathComponent("Phoenix.zip")
+        let archive = workFolder.appendingPathComponent("Update.zip")
         try FileManager.default.moveItem(at: downloaded, to: archive)
 
         try await run("/usr/bin/ditto", ["-x", "-k", archive.path, workFolder.path])
-        let newApp = workFolder.appendingPathComponent(appURL.lastPathComponent)
-        guard FileManager.default.fileExists(atPath: newApp.appendingPathComponent("Contents/MacOS").path) else {
+        // The bundle inside the zip may have a different name from the installed
+        // one; it still replaces the app at its current path.
+        let contents = (try? FileManager.default.contentsOfDirectory(at: workFolder, includingPropertiesForKeys: nil)) ?? []
+        guard let newApp = contents.first(where: { $0.pathExtension == "app" }),
+              FileManager.default.fileExists(atPath: newApp.appendingPathComponent("Contents/MacOS").path) else {
             throw UpdateError.badArchive
         }
 

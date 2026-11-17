@@ -48,7 +48,7 @@ extension Color {
 
 extension Theme {
     static let all: [Theme] = [
-        Theme(id: "phoenix", name: "Phoenix", family: .classic, isDark: true,
+        Theme(id: "phoenix", name: "Ember", family: .classic, isDark: true,
               accent: Color(hex: 0xFF6A3D), sidebarTop: Color(hex: 0x2A1418), sidebarBottom: Color(hex: 0x4A1A1C),
               background: Color(hex: 0x141012), surface: Color(hex: 0x1E181A), border: Color(hex: 0x2E2426)),
         Theme(id: "daylight", name: "Daylight", family: .classic, isDark: false,

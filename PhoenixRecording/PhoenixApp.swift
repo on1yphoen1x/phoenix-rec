@@ -6,7 +6,7 @@ struct PhoenixApp: App {
     @StateObject private var updater = Updater()
 
     var body: some Scene {
-        Window("Phoenix", id: "main") {
+        Window("Ember", id: "main") {
             MainView(controller: controller, updater: updater)
         }
         .windowStyle(.hiddenTitleBar)
@@ -31,7 +31,7 @@ struct MenuContent: View {
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
-        Button("Open Phoenix") { showMainWindow(.dashboard) }
+        Button("Open Ember") { showMainWindow(.dashboard) }
         Divider()
 
         if let release = updater.available {
@@ -79,7 +79,7 @@ struct MenuContent: View {
         Button("Check for Updates (build \(updater.currentBuild))") {
             Task { await updater.check() }
         }
-        Button("Quit Phoenix") { NSApp.terminate(nil) }
+        Button("Quit Ember") { NSApp.terminate(nil) }
             .keyboardShortcut("q")
     }
 

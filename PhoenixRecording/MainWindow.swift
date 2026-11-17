@@ -25,7 +25,7 @@ enum MainSection: String, CaseIterable, Identifiable {
         case .clips: "Every clip saved on this Mac"
         case .screenshots: "Screenshots saved on this Mac"
         case .shared: "Captures you've uploaded with Copy Link"
-        case .settings: "Clipping, audio, sharing and how Phoenix looks"
+        case .settings: "Clipping, audio, sharing and how Ember looks"
         }
     }
 }
@@ -114,7 +114,7 @@ struct Sidebar: View {
                     .foregroundStyle(.white)
                     .frame(width: 30, height: 30)
                     .background(theme.accent.gradient, in: RoundedRectangle(cornerRadius: 8))
-                Text("Phoenix")
+                Text("Ember")
                     .font(.system(size: 19, weight: .semibold))
             }
             .padding(.horizontal, 18)

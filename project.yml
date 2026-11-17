@@ -14,14 +14,18 @@ targets:
     platform: macOS
     sources:
       - PhoenixRecording
+    settings:
+      base:
+        PRODUCT_NAME: Ember
+        PRODUCT_BUNDLE_IDENTIFIER: app.phoenixclips.PhoenixRecording
     info:
       path: PhoenixRecording/Info.plist
       properties:
-        CFBundleDisplayName: Phoenix
+        CFBundleDisplayName: Ember
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         CFBundleShortVersionString: $(MARKETING_VERSION)
-        NSScreenCaptureUsageDescription: Phoenix needs screen access to take screenshots and recordings.
-        NSMicrophoneUsageDescription: Phoenix records your microphone only when you turn it on for a recording.
+        NSScreenCaptureUsageDescription: Ember needs screen access to take screenshots and recordings.
+        NSMicrophoneUsageDescription: Ember records your microphone only when you turn it on for a recording.
     entitlements:
       path: PhoenixRecording/PhoenixRecording.entitlements
       properties:

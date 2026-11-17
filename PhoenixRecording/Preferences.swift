@@ -12,7 +12,7 @@ final class Preferences {
                 return URL(fileURLWithPath: path, isDirectory: true)
             }
             let movies = FileManager.default.urls(for: .moviesDirectory, in: .userDomainMask)[0]
-            return movies.appendingPathComponent("Phoenix", isDirectory: true)
+            return movies.appendingPathComponent("Ember", isDirectory: true)
         }
         set { defaults.set(newValue.path, forKey: "saveFolder") }
     }
@@ -65,6 +65,17 @@ final class Preferences {
     var startsBufferOnLaunch: Bool {
         get { defaults.object(forKey: "startsBufferOnLaunch") as? Bool ?? true }
         set { defaults.set(newValue, forKey: "startsBufferOnLaunch") }
+    }
+
+    // Clips saved before the rename live in ~/Movies/Phoenix; bring them across
+    // unless the user picked their own folder.
+    func migrateDefaultFolder() {
+        guard defaults.string(forKey: "saveFolder") == nil else { return }
+        let movies = FileManager.default.urls(for: .moviesDirectory, in: .userDomainMask)[0]
+        let old = movies.appendingPathComponent("Phoenix", isDirectory: true)
+        let fileManager = FileManager.default
+        guard fileManager.fileExists(atPath: old.path), !fileManager.fileExists(atPath: saveFolder.path) else { return }
+        try? fileManager.moveItem(at: old, to: saveFolder)
     }
 
     func ensureSaveFolder() throws -> URL {

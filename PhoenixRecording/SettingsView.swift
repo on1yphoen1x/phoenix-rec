@@ -24,7 +24,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .clipping: "Clip length, quality and where captures are saved"
         case .audio: "What gets recorded and the sound when a clip saves"
         case .sharing: "Where Copy Link uploads to"
-        case .appearance: "Themes for the Phoenix window"
+        case .appearance: "Themes for the Ember window"
         }
     }
 }
@@ -153,7 +153,7 @@ struct SettingsView: View {
     @ViewBuilder
     private var clipping: some View {
         SettingsCard(symbol: "dot.circle.viewfinder", title: "Replay Buffer",
-                     subtitle: "Phoenix keeps this much of your screen ready to save at any moment") {
+                     subtitle: "Ember keeps this much of your screen ready to save at any moment") {
             SettingRow(title: "Clip length") {
                 Picker("", selection: $clipSeconds) {
                     ForEach([15, 30, 60, 90, 120], id: \.self) { Text("\($0) seconds") }
@@ -178,14 +178,14 @@ struct SettingsView: View {
                 controller.restartBufferIfRunning()
             }
 
-            SettingRow(title: "Start the replay buffer when Phoenix opens") {
+            SettingRow(title: "Start the replay buffer when Ember opens") {
                 Toggle("", isOn: $startsBufferOnLaunch).toggleStyle(.switch).labelsHidden()
             }
             .onChange(of: startsBufferOnLaunch) { _, value in
                 Preferences.shared.startsBufferOnLaunch = value
             }
 
-            SettingRow(title: "Open Phoenix at login") {
+            SettingRow(title: "Open Ember at login") {
                 Toggle("", isOn: $opensAtLogin).toggleStyle(.switch).labelsHidden()
             }
             .onChange(of: opensAtLogin) { _, value in

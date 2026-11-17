@@ -129,7 +129,7 @@ ${head}
 <style>${styles}</style>
 </head>
 <body>
-<header class="site-header"><a class="site-header__link" href="${siteURL}">PHOENIX</a></header>
+<header class="site-header"><a class="site-header__link" href="${siteURL}">EMBER</a></header>
 ${main}
 <footer class="site-footer">
 <a href="${siteURL}/privacy">Privacy Policy</a>
@@ -169,7 +169,7 @@ export function renderViewer({ siteURL, id, fileURL, pageURL, contentType, uploa
   const html = page({
     siteURL,
     title: `${title} ${id}`,
-    head: `<meta property="og:title" content="${title} shared from Phoenix">
+    head: `<meta property="og:title" content="${title} shared from Ember">
 <meta property="og:url" content="${pageURL}">
 ${meta}`,
     main: `<main class="clip">

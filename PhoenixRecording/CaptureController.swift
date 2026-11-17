@@ -24,6 +24,7 @@ final class CaptureController: ObservableObject {
     private var hotKeys: [HotKey] = []
 
     init() {
+        Preferences.shared.migrateDefaultFolder()
         hotKeys = [
             HotKey(keyCode: kVK_ANSI_C, modifiers: optionKey | shiftKey) { [weak self] in self?.saveClip() },
             HotKey(keyCode: kVK_ANSI_4, modifiers: optionKey | shiftKey) { [weak self] in self?.takeScreenshot(.area) },

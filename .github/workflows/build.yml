@@ -29,12 +29,18 @@ jobs:
             build
 
       - name: Package
-        run: ditto -c -k --keepParent build/Build/Products/Release/PhoenixRecording.app Phoenix.zip
+        # Phoenix.zip keeps the old bundle name so copies from before the rename
+        # can still find and install the update.
+        run: |
+          ditto -c -k --keepParent build/Build/Products/Release/Ember.app Ember.zip
+          mkdir legacy
+          ditto build/Build/Products/Release/Ember.app legacy/PhoenixRecording.app
+          ditto -c -k --keepParent legacy/PhoenixRecording.app Phoenix.zip
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Phoenix
-          path: Phoenix.zip
+          name: Ember
+          path: Ember.zip
 
       - name: Publish release
         if: github.ref == 'refs/heads/main'
@@ -42,9 +48,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          gh release create "build-${{ github.run_number }}" Phoenix.zip \
-            --title "Phoenix build ${{ github.run_number }}" \
-            --notes "Unzip, drag PhoenixRecording into Applications and open it." \
+          gh release create "build-${{ github.run_number }}" Ember.zip Phoenix.zip \
+            --title "Ember build ${{ github.run_number }}" \
+            --notes "Download Ember.zip, unzip it, drag Ember into Applications and open it." \
             --target "${{ github.sha }}" --latest
           gh release list --limit 100 --json tagName --jq '.[].tagName' \
             | grep -v "^build-${{ github.run_number }}$" \
