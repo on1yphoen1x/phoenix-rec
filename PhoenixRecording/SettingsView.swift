@@ -33,14 +33,30 @@ struct SettingsTabBar: View {
     @Binding var selection: SettingsTab
     @Environment(\.theme) private var theme
 
+    // Falls back to icons only when the window is too narrow, so labels never wrap.
     var body: some View {
+        ViewThatFits(in: .horizontal) {
+            tabs(showsTitles: true)
+            tabs(showsTitles: false)
+        }
+    }
+
+    private func tabs(showsTitles: Bool) -> some View {
         HStack(spacing: 2) {
             ForEach(SettingsTab.allCases) { tab in
                 Button {
                     selection = tab
                 } label: {
-                    Label(tab.rawValue, systemImage: tab.symbol)
+                    Group {
+                        if showsTitles {
+                            Label(tab.rawValue, systemImage: tab.symbol)
+                        } else {
+                            Image(systemName: tab.symbol)
+                        }
+                    }
                         .font(.system(size: 13, weight: selection == tab ? .semibold : .regular))
+                        .lineLimit(1)
+                        .fixedSize()
                         .padding(.horizontal, 12)
                         .padding(.vertical, 7)
                         .contentShape(Rectangle())
@@ -53,8 +69,10 @@ struct SettingsTabBar: View {
                         }
                 }
                 .buttonStyle(.plain)
+                .help(tab.rawValue)
             }
         }
+        .fixedSize()
         .padding(4)
         .background(theme.surface, in: RoundedRectangle(cornerRadius: 11))
         .overlay(RoundedRectangle(cornerRadius: 11).stroke(theme.border))
@@ -79,9 +97,11 @@ struct SettingsCard<Content: View>: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
                         .font(.headline)
+                        .lineLimit(1)
                     Text(subtitle)
                         .font(.callout)
                         .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
             content
@@ -102,14 +122,18 @@ struct SettingRow<Control: View>: View {
         HStack(alignment: .center, spacing: 16) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
+                    .fixedSize(horizontal: false, vertical: true)
                 if let detail {
                     Text(detail)
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                        .truncationMode(.middle)
                 }
             }
             Spacer(minLength: 12)
             control
+                .fixedSize()
         }
     }
 }
@@ -346,6 +370,7 @@ struct ThemeOption: View {
                     .overlay(Circle().stroke(.white.opacity(0.25)))
                 Text(option.name)
                     .font(.system(size: 13, weight: .medium))
+                    .lineLimit(1)
                 Spacer()
                 if option.scenery != .plain {
                     Image(systemName: "mountain.2")
@@ -383,6 +408,7 @@ struct SoundOption: View {
                     .foregroundStyle(isSelected ? AnyShapeStyle(theme.accent) : AnyShapeStyle(.secondary))
                 Text(name)
                     .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
+                    .lineLimit(1)
                 Spacer()
             }
             .padding(.horizontal, 12)

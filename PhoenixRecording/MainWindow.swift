@@ -64,13 +64,18 @@ struct MainView: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(controller.section.rawValue)
                     .font(.system(size: 22, weight: .semibold))
+                    .lineLimit(1)
                 Text(controller.section == .settings ? settingsTab.subtitle : controller.section.subtitle)
                     .font(.callout)
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
             }
-            Spacer()
+            .layoutPriority(0)
+            Spacer(minLength: 12)
             if controller.section == .settings {
                 SettingsTabBar(selection: $settingsTab)
+                    .layoutPriority(1)
             }
         }
         .padding(.horizontal, 28)
@@ -160,6 +165,7 @@ struct Sidebar: View {
                     .frame(width: 8, height: 8)
                 Text(controller.isBuffering ? "Replay buffer on" : "Replay buffer off")
                     .font(.callout.weight(.medium))
+                    .lineLimit(1)
                 Spacer()
                 Toggle("", isOn: Binding(
                     get: { controller.isBuffering },
@@ -220,6 +226,7 @@ struct SidebarItem: View {
                     .foregroundStyle(isSelected ? AnyShapeStyle(theme.accent) : AnyShapeStyle(.secondary))
                 Text(section.rawValue)
                     .font(.system(size: 14, weight: isSelected ? .semibold : .regular))
+                    .lineLimit(1)
                 Spacer()
                 if isSelected {
                     Capsule()
@@ -323,9 +330,12 @@ struct StatTile: View {
                 Text(value)
                     .font(.title3.weight(.semibold))
                     .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
                 Text(title)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
             Spacer(minLength: 0)
         }
@@ -426,8 +436,10 @@ struct CaptureCard: View {
                     Clipboard.copyFile(capture)
                     flash(capture.kind.isVideo ? "Video copied" : "Image copied")
                 }
+                .fixedSize()
                 Button(isUploading ? "Preparing..." : "Copy Link") { share() }
                     .disabled(isUploading)
+                    .fixedSize()
                 Spacer()
                 Menu {
                     Button("Open") { NSWorkspace.shared.open(capture.fileURL) }
