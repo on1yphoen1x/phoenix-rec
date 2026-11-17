@@ -36,7 +36,7 @@ struct ClippingSetupSheet: View {
                     Label(controller.isBuffering ? "Done" : "Start Clipping",
                           systemImage: controller.isBuffering ? "checkmark" : "record.circle")
                         .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(theme.onAccent)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 12)
                         .background(theme.accent.gradient, in: RoundedRectangle(cornerRadius: 12))
@@ -302,7 +302,7 @@ struct SegmentedChoice<Value: Hashable>: View {
                 } label: {
                     Text(title(option))
                         .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
-                        .foregroundStyle(isSelected ? Color.white : Color.primary)
+                        .foregroundStyle(isSelected ? theme.onAccent : Color.primary)
                         .lineLimit(1)
                         .fixedSize()
                         .padding(.horizontal, 14)

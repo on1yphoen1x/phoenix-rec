@@ -296,7 +296,7 @@ struct SettingsView: View {
                     saveSharing()
                     sharingSaved = true
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(AccentButtonStyle())
                 if sharingSaved {
                     Text("Saved").font(.callout).foregroundStyle(.secondary)
                 }
@@ -318,7 +318,7 @@ struct SettingsView: View {
     @ViewBuilder
     private var appearance: some View {
         SettingsCard(symbol: "paintpalette", title: "Colour Theme",
-                     subtitle: "\(Theme.all.count) themes, all free. Scenic themes add artwork to the sidebar") {
+                     subtitle: "\(Theme.all.count) themes, all free. Scenic themes add artwork behind the replay strip") {
             ForEach(Theme.Family.allCases, id: \.self) { family in
                 VStack(alignment: .leading, spacing: 10) {
                     Text(family.rawValue)

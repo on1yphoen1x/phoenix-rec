@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct Theme: Identifiable, Equatable {
@@ -32,6 +33,51 @@ struct Theme: Identifiable, Equatable {
 
     var sidebarGradient: LinearGradient {
         LinearGradient(colors: [sidebarTop, sidebarBottom], startPoint: .top, endPoint: .bottom)
+    }
+
+    // Text drawn on an accent fill. Picks black or white by WCAG contrast, so
+    // bright accents like orange or green get dark text instead of washed-out white.
+    var onAccent: Color {
+        guard let rgb = NSColor(accent).usingColorSpace(.sRGB) else { return .white }
+        func linear(_ c: CGFloat) -> CGFloat {
+            c <= 0.03928 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4)
+        }
+        let luminance = 0.2126 * linear(rgb.redComponent) + 0.7152 * linear(rgb.greenComponent)
+            + 0.0722 * linear(rgb.blueComponent)
+        let withWhite = 1.05 / (luminance + 0.05)
+        let withBlack = (luminance + 0.05) / 0.05
+        return withBlack > withWhite ? Color(hex: 0x111111) : .white
+    }
+}
+
+struct AccentButtonStyle: ButtonStyle {
+    var isLarge = false
+    @Environment(\.theme) private var theme
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: isLarge ? 15 : 13, weight: .semibold))
+            .foregroundStyle(theme.onAccent)
+            .padding(.horizontal, isLarge ? 20 : 12)
+            .padding(.vertical, isLarge ? 11 : 6)
+            .background(theme.accent.opacity(configuration.isPressed ? 0.8 : 1), in: RoundedRectangle(cornerRadius: 7))
+            .opacity(isEnabled ? 1 : 0.5)
+            .contentShape(RoundedRectangle(cornerRadius: 7))
+    }
+}
+
+struct QuietButtonStyle: ButtonStyle {
+    @Environment(\.theme) private var theme
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 13, weight: .medium))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(theme.surface.opacity(configuration.isPressed ? 0.6 : 1), in: RoundedRectangle(cornerRadius: 7))
+            .overlay(RoundedRectangle(cornerRadius: 7).stroke(theme.border))
+            .contentShape(RoundedRectangle(cornerRadius: 7))
     }
 }
 

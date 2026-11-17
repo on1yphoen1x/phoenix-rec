@@ -1,10 +1,28 @@
 import AppKit
 import QuickLookThumbnailing
 
-// The library is just the captures folder on disk; share links are the only
-// extra state, kept in UserDefaults keyed by file name.
+// The library is just the captures folder on disk. Share links and the game
+// each clip came from are the only extra state, kept in UserDefaults by file name.
 enum Library {
+    struct Source: Hashable {
+        let bundleID: String
+        let name: String
+    }
+
     private static let linksKey = "shareLinks"
+    private static let sourcesKey = "clipSources"
+
+    static func source(for capture: Capture) -> Source? {
+        let sources = UserDefaults.standard.dictionary(forKey: sourcesKey) as? [String: [String]] ?? [:]
+        guard let pair = sources[capture.fileURL.lastPathComponent], pair.count == 2 else { return nil }
+        return Source(bundleID: pair[0], name: pair[1])
+    }
+
+    static func setSource(_ source: Source?, for capture: Capture) {
+        var sources = UserDefaults.standard.dictionary(forKey: sourcesKey) as? [String: [String]] ?? [:]
+        sources[capture.fileURL.lastPathComponent] = source.map { [$0.bundleID, $0.name] }
+        UserDefaults.standard.set(sources, forKey: sourcesKey)
+    }
 
     static func load() -> [Capture] {
         let folder = Preferences.shared.saveFolder

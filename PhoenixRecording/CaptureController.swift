@@ -12,9 +12,10 @@ final class CaptureController: ObservableObject {
     @Published private(set) var captureOptions = CaptureOptions()
     @Published private(set) var isLoadingOptions = false
     @Published private(set) var captureLabel = ""
+    @Published private(set) var bufferStartedAt: Date?
     @Published private(set) var lastCapture: Capture?
     @Published private(set) var captures: [Capture] = []
-    @Published var section = MainSection.dashboard
+    @Published var section = MainSection.clips
     @Published var recordsMicrophone = Preferences.shared.recordsMicrophone {
         didSet {
             Preferences.shared.recordsMicrophone = recordsMicrophone
@@ -37,6 +38,7 @@ final class CaptureController: ObservableObject {
         replay.onStop = { [weak self] error in
             Task { @MainActor in
                 self?.isBuffering = false
+                self?.bufferStartedAt = nil
                 self?.present(error)
             }
         }
@@ -50,7 +52,7 @@ final class CaptureController: ObservableObject {
     func startBuffer() {
         guard CGPreflightScreenCaptureAccess() else {
             needsScreenPermission = true
-            section = .dashboard
+            section = .clips
             return
         }
         guard !isStartingBuffer else { return }
@@ -63,6 +65,7 @@ final class CaptureController: ObservableObject {
                 try await replay.start(seconds: prefs.clipSeconds, quality: prefs.clipQuality,
                                        includeMicrophone: recordsMicrophone, video: target.video, audio: target.audio)
                 captureLabel = target.label
+                bufferStartedAt = Date()
                 isBuffering = true
             } catch {
                 if CGPreflightScreenCaptureAccess() {
@@ -105,6 +108,7 @@ final class CaptureController: ObservableObject {
         Task {
             await replay.stop()
             isBuffering = false
+            bufferStartedAt = nil
         }
     }
 
@@ -113,6 +117,7 @@ final class CaptureController: ObservableObject {
         Task {
             await replay.stop()
             isBuffering = false
+            bufferStartedAt = nil
             startBuffer()
         }
     }
@@ -123,6 +128,7 @@ final class CaptureController: ObservableObject {
             return
         }
         isSavingClip = true
+        let source = currentSource()
         if Preferences.shared.playsSaveSound {
             SaveSound.play()
         }
@@ -133,7 +139,9 @@ final class CaptureController: ObservableObject {
                 let folder = try Preferences.shared.ensureSaveFolder()
                 let url = Capture.newFileURL(kind: .clip, in: folder)
                 try await replay.saveClip(to: url)
-                finish(Capture(kind: .clip, fileURL: url, createdAt: Date()))
+                let capture = Capture(kind: .clip, fileURL: url, createdAt: Date())
+                Library.setSource(source, for: capture)
+                finish(capture)
             } catch {
                 present(error)
             }
@@ -189,6 +197,7 @@ final class CaptureController: ObservableObject {
         do {
             try FileManager.default.trashItem(at: capture.fileURL, resultingItemURL: nil)
             Library.setShareLink(nil, for: capture)
+            Library.setSource(nil, for: capture)
             reloadLibrary()
         } catch {
             present(error)
@@ -197,6 +206,30 @@ final class CaptureController: ObservableObject {
 
     func showResult(for capture: Capture) {
         resultPanel.show(capture)
+    }
+
+    // The game a clip came from: the picked app or window when recording one,
+    // otherwise whatever app was in front when the clip was saved.
+    private func currentSource() -> Library.Source? {
+        let prefs = Preferences.shared
+        switch prefs.captureSource {
+        case .app:
+            if let app = captureOptions.apps.first(where: { $0.id == prefs.captureAppID }) {
+                return Library.Source(bundleID: app.id, name: app.name)
+            }
+        case .window:
+            let bundleID = String(prefs.captureWindowID.split(separator: "\u{1F}").first ?? "")
+            if let app = captureOptions.apps.first(where: { $0.id == bundleID }) {
+                return Library.Source(bundleID: app.id, name: app.name)
+            }
+        case .screen:
+            break
+        }
+        guard let front = NSWorkspace.shared.frontmostApplication,
+              let bundleID = front.bundleIdentifier,
+              bundleID != Bundle.main.bundleIdentifier,
+              let name = front.localizedName else { return nil }
+        return Library.Source(bundleID: bundleID, name: name)
     }
 
     private func finish(_ capture: Capture) {

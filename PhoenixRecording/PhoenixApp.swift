@@ -10,6 +10,7 @@ struct PhoenixApp: App {
             MainView(controller: controller, updater: updater)
         }
         .windowStyle(.hiddenTitleBar)
+        .windowBackgroundDragBehavior(.enabled)
         .defaultSize(width: 1120, height: 720)
 
         MenuBarExtra {

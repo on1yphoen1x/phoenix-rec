@@ -40,7 +40,7 @@ struct MenuPanel: View {
             VStack(spacing: 8) {
                 if controller.needsScreenPermission {
                     PanelRow(symbol: "lock.shield", title: "Allow Screen Recording", subtitle: "Flint can't record until you allow it") {
-                        showMainWindow(.dashboard)
+                        showMainWindow(.clips)
                         controller.requestScreenPermission()
                     }
                 }
@@ -54,7 +54,7 @@ struct MenuPanel: View {
                     .disabled(updater.isInstalling)
                 }
                 PanelRow(symbol: "macwindow", title: "Open Flint", subtitle: "Show the main window") {
-                    showMainWindow(.dashboard)
+                    showMainWindow(.clips)
                 }
                 PanelRow(symbol: "camera.viewfinder", title: "Take Screenshot", subtitle: "Drag over an area, or \u{2325}\u{21E7}4") {
                     closePanel()
@@ -114,14 +114,14 @@ struct MenuPanel: View {
             Label(controller.isBuffering ? "Stop Clipping" : (controller.isStartingBuffer ? "Starting..." : "Start Clipping"),
                   systemImage: controller.isBuffering ? "stop.fill" : "record.circle")
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(controller.isBuffering ? Color.white : theme.onAccent)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 11)
                 .background {
-                    RoundedRectangle(cornerRadius: 11)
-                        .fill(controller.isBuffering ? AnyShapeStyle(Color.red.opacity(0.85)) : AnyShapeStyle(theme.accent.gradient))
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(controller.isBuffering ? AnyShapeStyle(Color(hex: 0xC62828)) : AnyShapeStyle(theme.accent.gradient))
                 }
-                .contentShape(RoundedRectangle(cornerRadius: 11))
+                .contentShape(RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)
         .disabled(controller.isStartingBuffer)
@@ -220,9 +220,9 @@ struct PanelRow: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
-            .background(isHovering ? theme.accent.opacity(0.1) : theme.surface, in: RoundedRectangle(cornerRadius: 11))
-            .overlay(RoundedRectangle(cornerRadius: 11).stroke(theme.border))
-            .contentShape(RoundedRectangle(cornerRadius: 11))
+            .background(isHovering ? theme.accent.opacity(0.1) : theme.surface, in: RoundedRectangle(cornerRadius: 8))
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(theme.border))
+            .contentShape(RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)
         .onHover { isHovering = $0 }
