@@ -15,14 +15,15 @@ struct PhoenixApp: App {
         MenuBarExtra {
             MenuContent(controller: controller, updater: updater)
         } label: {
-            Image(systemName: menuBarSymbol)
+            if controller.isRecording {
+                Image(systemName: "record.circle.fill")
+            } else {
+                Image("MenuBarIcon")
+                    .opacity(controller.isBuffering ? 1 : 0.55)
+            }
         }
     }
 
-    private var menuBarSymbol: String {
-        if controller.isRecording { return "record.circle.fill" }
-        return controller.isBuffering ? "dot.circle.viewfinder" : "camera.viewfinder"
-    }
 }
 
 struct MenuContent: View {
