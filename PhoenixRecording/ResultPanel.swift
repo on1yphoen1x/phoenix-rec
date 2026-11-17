@@ -1,5 +1,4 @@
 import AppKit
-import AVKit
 import SwiftUI
 
 @MainActor
@@ -51,6 +50,7 @@ struct ResultView: View {
     @State private var status: String?
     @State private var isUploading = false
     @State private var sharedURL: URL?
+    @State private var thumbnail: NSImage?
 
     var body: some View {
         VStack(spacing: 12) {
@@ -101,7 +101,26 @@ struct ResultView: View {
                     .aspectRatio(contentMode: .fit)
             }
         case .clip, .recording:
-            VideoPlayer(player: AVPlayer(url: capture.fileURL))
+            // A thumbnail rather than SwiftUI's VideoPlayer, which crashes on
+            // macOS 26 when the app is built with the macOS 15 SDK.
+            ZStack {
+                Rectangle().fill(.black)
+                if let thumbnail {
+                    Image(nsImage: thumbnail)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                }
+                Image(systemName: "play.fill")
+                    .font(.system(size: 16))
+                    .foregroundStyle(.white)
+                    .frame(width: 40, height: 40)
+                    .background(.black.opacity(0.45), in: Circle())
+            }
+            .contentShape(Rectangle())
+            .onTapGesture { NSWorkspace.shared.open(capture.fileURL) }
+            .task(id: capture.fileURL) {
+                thumbnail = await Library.thumbnail(for: capture, size: CGSize(width: 320, height: 180))
+            }
         }
     }
 
