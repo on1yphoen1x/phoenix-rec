@@ -55,6 +55,7 @@ final class ReplayBuffer: NSObject {
     private let workFolder: URL
 
     private var stream: SCStream?
+    private var audioStream: SCStream?
     private var writer: AVAssetWriter?
     private var videoInput: AVAssetWriterInput?
     private var gameAudioInput: AVAssetWriterInput?
@@ -74,25 +75,15 @@ final class ReplayBuffer: NSObject {
         super.init()
     }
 
-    func start(seconds: Int, quality: ClipQuality, includeMicrophone: Bool) async throws {
+    func start(seconds: Int, quality: ClipQuality, includeMicrophone: Bool,
+               video filter: SCContentFilter, audio audioFilter: SCContentFilter) async throws {
         try? FileManager.default.removeItem(at: workFolder)
         try FileManager.default.createDirectory(at: workFolder, withIntermediateDirectories: true)
 
-        let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
-        let mainID = await MainActor.run {
-            NSScreen.main?.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID
-        }
-        guard let display = content.displays.first(where: { $0.displayID == mainID }) ?? content.displays.first else {
-            throw BufferError.noDisplay
-        }
-
-        let ownApp = content.applications.filter { $0.bundleIdentifier == Bundle.main.bundleIdentifier }
-        let filter = SCContentFilter(display: display, excludingApplications: ownApp, exceptingWindows: [])
-
-        let nativeHeight = Int(filter.contentRect.height * CGFloat(filter.pointPixelScale))
-        let nativeWidth = Int(filter.contentRect.width * CGFloat(filter.pointPixelScale))
-        let height = min(quality.height, nativeHeight)
-        let width = (nativeWidth * height / nativeHeight) & ~1
+        let nativeHeight = max(2, Int(filter.contentRect.height * CGFloat(filter.pointPixelScale)))
+        let nativeWidth = max(2, Int(filter.contentRect.width * CGFloat(filter.pointPixelScale)))
+        let height = min(quality.height, nativeHeight) & ~1
+        let width = max(2, (nativeWidth * height / nativeHeight) & ~1)
 
         let config = SCStreamConfiguration()
         config.width = width
@@ -101,16 +92,28 @@ final class ReplayBuffer: NSObject {
         config.queueDepth = 8
         config.showsCursor = true
         config.pixelFormat = kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
-        config.capturesAudio = true
-        config.sampleRate = 48_000
-        config.channelCount = 2
-        config.captureMicrophone = includeMicrophone
+        config.capturesAudio = false
 
         let stream = SCStream(filter: filter, configuration: config, delegate: self)
         try stream.addStreamOutput(self, type: .screen, sampleHandlerQueue: queue)
-        try stream.addStreamOutput(self, type: .audio, sampleHandlerQueue: queue)
+
+        // Audio runs on its own stream so it can follow a different filter from
+        // the picture. Its video is the smallest ScreenCaptureKit allows and is
+        // never read.
+        let audioConfig = SCStreamConfiguration()
+        audioConfig.width = 2
+        audioConfig.height = 2
+        audioConfig.minimumFrameInterval = CMTime(value: 1, timescale: 1)
+        audioConfig.capturesAudio = true
+        audioConfig.excludesCurrentProcessAudio = true
+        audioConfig.sampleRate = 48_000
+        audioConfig.channelCount = 2
+        audioConfig.captureMicrophone = includeMicrophone
+
+        let audioStream = SCStream(filter: audioFilter, configuration: audioConfig, delegate: self)
+        try audioStream.addStreamOutput(self, type: .audio, sampleHandlerQueue: queue)
         if includeMicrophone {
-            try stream.addStreamOutput(self, type: .microphone, sampleHandlerQueue: queue)
+            try audioStream.addStreamOutput(self, type: .microphone, sampleHandlerQueue: queue)
         }
 
         queue.sync {
@@ -123,12 +126,21 @@ final class ReplayBuffer: NSObject {
         }
 
         try await stream.startCapture()
+        do {
+            try await audioStream.startCapture()
+        } catch {
+            try? await stream.stopCapture()
+            throw error
+        }
         self.stream = stream
+        self.audioStream = audioStream
     }
 
     func stop() async {
         try? await stream?.stopCapture()
+        try? await audioStream?.stopCapture()
         stream = nil
+        audioStream = nil
         await closeSegment()
         queue.sync { finished.removeAll() }
         try? FileManager.default.removeItem(at: workFolder)
@@ -315,7 +327,10 @@ extension ReplayBuffer: SCStreamOutput, SCStreamDelegate {
     }
 
     func stream(_ stream: SCStream, didStopWithError error: Error) {
+        let other = stream === self.stream ? audioStream : self.stream
         self.stream = nil
+        audioStream = nil
+        Task { try? await other?.stopCapture() }
         onStop?(error)
     }
 }

@@ -62,6 +62,36 @@ final class Preferences {
         set { defaults.set(newValue, forKey: "saveSoundVolume") }
     }
 
+    var captureSource: CaptureSource {
+        get { defaults.string(forKey: "captureSource").flatMap(CaptureSource.init(rawValue:)) ?? .screen }
+        set { defaults.set(newValue.rawValue, forKey: "captureSource") }
+    }
+
+    var captureDisplayID: String {
+        get { defaults.string(forKey: "captureDisplayID") ?? "" }
+        set { defaults.set(newValue, forKey: "captureDisplayID") }
+    }
+
+    var captureWindowID: String {
+        get { defaults.string(forKey: "captureWindowID") ?? "" }
+        set { defaults.set(newValue, forKey: "captureWindowID") }
+    }
+
+    var captureAppID: String {
+        get { defaults.string(forKey: "captureAppID") ?? "" }
+        set { defaults.set(newValue, forKey: "captureAppID") }
+    }
+
+    var audioSource: AudioSource {
+        get { defaults.string(forKey: "audioSource").flatMap(AudioSource.init(rawValue:)) ?? .all }
+        set { defaults.set(newValue.rawValue, forKey: "audioSource") }
+    }
+
+    var audioAppID: String {
+        get { defaults.string(forKey: "audioAppID") ?? "" }
+        set { defaults.set(newValue, forKey: "audioAppID") }
+    }
+
     var startsBufferOnLaunch: Bool {
         get { defaults.object(forKey: "startsBufferOnLaunch") as? Bool ?? true }
         set { defaults.set(newValue, forKey: "startsBufferOnLaunch") }

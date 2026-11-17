@@ -54,9 +54,9 @@ struct MenuContent: View {
         if controller.isBuffering {
             Button("Save Clip (\u{2325}\u{21E7}C)") { controller.saveClip() }
                 .disabled(controller.isSavingClip)
-            Button("Turn Off Replay Buffer") { controller.stopBuffer() }
+            Button("Stop Clipping") { controller.stopBuffer() }
         } else {
-            Button("Turn On Replay Buffer") { controller.startBuffer() }
+            Button("Start Clipping") { controller.startBuffer() }
         }
         Toggle("Record Microphone", isOn: $controller.recordsMicrophone)
 

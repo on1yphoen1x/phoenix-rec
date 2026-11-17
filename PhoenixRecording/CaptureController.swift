@@ -8,6 +8,9 @@ final class CaptureController: ObservableObject {
     @Published private(set) var isRecording = false
     @Published private(set) var isSavingClip = false
     @Published private(set) var needsScreenPermission = false
+    @Published private(set) var isStartingBuffer = false
+    @Published private(set) var captureOptions = CaptureOptions()
+    @Published private(set) var captureLabel = ""
     @Published private(set) var lastCapture: Capture?
     @Published private(set) var captures: [Capture] = []
     @Published var section = MainSection.dashboard
@@ -49,10 +52,16 @@ final class CaptureController: ObservableObject {
             section = .dashboard
             return
         }
+        guard !isStartingBuffer else { return }
+        isStartingBuffer = true
         Task {
+            defer { isStartingBuffer = false }
             do {
                 let prefs = Preferences.shared
-                try await replay.start(seconds: prefs.clipSeconds, quality: prefs.clipQuality, includeMicrophone: recordsMicrophone)
+                let target = try await CaptureTarget.resolve()
+                try await replay.start(seconds: prefs.clipSeconds, quality: prefs.clipQuality,
+                                       includeMicrophone: recordsMicrophone, video: target.video, audio: target.audio)
+                captureLabel = target.label
                 isBuffering = true
             } catch {
                 if CGPreflightScreenCaptureAccess() {
@@ -60,6 +69,15 @@ final class CaptureController: ObservableObject {
                 } else {
                     needsScreenPermission = true
                 }
+            }
+        }
+    }
+
+    func refreshCaptureOptions() {
+        guard CGPreflightScreenCaptureAccess() else { return }
+        Task {
+            if let options = try? await CaptureTarget.options() {
+                captureOptions = options
             }
         }
     }

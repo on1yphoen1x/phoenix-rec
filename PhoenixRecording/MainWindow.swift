@@ -202,7 +202,7 @@ struct Sidebar: View {
                 Circle()
                     .fill(controller.isBuffering ? Color.green : Color.secondary.opacity(0.6))
                     .frame(width: 8, height: 8)
-                Text(controller.isBuffering ? "Replay buffer on" : "Replay buffer off")
+                Text(controller.isBuffering ? "Clipping" : "Not clipping")
                     .font(.callout.weight(.medium))
                     .lineLimit(1)
                 Spacer()
@@ -296,19 +296,9 @@ struct DashboardView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
+                ClippingCard(controller: controller)
+
                 HStack(spacing: 12) {
-                    if controller.isBuffering {
-                        Button { controller.saveClip() } label: {
-                            Label("Save Clip", systemImage: "record.circle")
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(controller.isSavingClip)
-                    } else {
-                        Button { controller.startBuffer() } label: {
-                            Label("Turn On Replay Buffer", systemImage: "dot.circle.viewfinder")
-                        }
-                        .buttonStyle(.borderedProminent)
-                    }
                     Button { controller.takeScreenshot(.area) } label: {
                         Label("Take Screenshot", systemImage: "camera.viewfinder")
                     }
@@ -317,7 +307,6 @@ struct DashboardView: View {
                         Label("Open Folder", systemImage: "folder")
                     }
                 }
-                .controlSize(.large)
 
                 HStack(spacing: 14) {
                     StatTile(title: "Clips", value: "\(clips.count)", symbol: "play.rectangle")
