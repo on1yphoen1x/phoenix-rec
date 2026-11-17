@@ -223,11 +223,18 @@ final class CaptureController: ObservableObject {
         workspaceObservers = [
             center.addObserver(forName: NSWorkspace.didLaunchApplicationNotification, object: nil, queue: .main) { [weak self] note in
                 guard let id = (note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)?.bundleIdentifier else { return }
-                Task { @MainActor in self?.appLaunched(id) }
+                Task { @MainActor in
+                    self?.appLaunched(id)
+                    try? await Task.sleep(for: .seconds(3))
+                    self?.refreshCaptureOptions()
+                }
             },
             center.addObserver(forName: NSWorkspace.didTerminateApplicationNotification, object: nil, queue: .main) { [weak self] note in
                 guard let id = (note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)?.bundleIdentifier else { return }
-                Task { @MainActor in self?.appTerminated(id) }
+                Task { @MainActor in
+                    self?.appTerminated(id)
+                    self?.refreshCaptureOptions()
+                }
             },
         ]
     }

@@ -173,10 +173,20 @@ enum CaptureTarget {
             guard let app = window.owningApplication,
                   !app.bundleIdentifier.isEmpty,
                   app.bundleIdentifier != Bundle.main.bundleIdentifier,
-                  window.windowLayer == 0 else { return false }
+                  !systemApps.contains(app.bundleIdentifier) else { return false }
+            // Some games that launch straight into full screen put their window
+            // above the normal layer, so a window covering a whole display counts too.
+            let coversDisplay = content.displays.contains { $0.frame.size == window.frame.size }
+            guard window.windowLayer == 0 || coversDisplay else { return false }
             return window.frame.width >= 200 && window.frame.height >= 150
         }
     }
+
+    private static let systemApps: Set<String> = [
+        "com.apple.dock", "com.apple.WindowManager", "com.apple.controlcenter",
+        "com.apple.notificationcenterui", "com.apple.Spotlight", "com.apple.systemuiserver",
+        "com.apple.screencaptureui", "com.apple.wallpaper.agent",
+    ]
 
     private static func windowName(_ window: SCWindow) -> String {
         let app = window.owningApplication?.applicationName ?? "App"
@@ -185,7 +195,7 @@ enum CaptureTarget {
     }
 
     private static func displayShowing(_ app: SCRunningApplication, in content: SCShareableContent) -> SCDisplay? {
-        guard let frame = content.windows.first(where: { $0.owningApplication?.processID == app.processID && $0.windowLayer == 0 })?.frame else {
+        guard let frame = recordableWindows(in: content).first(where: { $0.owningApplication?.processID == app.processID })?.frame else {
             return nil
         }
         return content.displays.first { $0.frame.intersects(frame) }
