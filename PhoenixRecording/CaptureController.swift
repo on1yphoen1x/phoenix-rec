@@ -28,6 +28,8 @@ final class CaptureController: ObservableObject {
     private let replay = ReplayBuffer()
     private let resultPanel = ResultPanelController()
     private var hotKeys: [HotKey] = []
+    private var workspaceObservers: [NSObjectProtocol] = []
+    private var autoStartedBundleID: String?
 
     init() {
         Preferences.shared.migrateDefaultFolder()
@@ -42,14 +44,20 @@ final class CaptureController: ObservableObject {
                 self?.present(error)
             }
         }
+        watchForAutoClipApps()
         if !CGPreflightScreenCaptureAccess() {
             needsScreenPermission = true
-        } else if Preferences.shared.startsBufferOnLaunch {
-            startBuffer()
+        } else {
+            let running = NSWorkspace.shared.runningApplications.compactMap(\.bundleIdentifier)
+            if let game = running.first(where: { Preferences.shared.autoClipApps.contains($0) }) {
+                appLaunched(game)
+            } else if Preferences.shared.startsBufferOnLaunch {
+                startBuffer(quietly: true)
+            }
         }
     }
 
-    func startBuffer() {
+    func startBuffer(quietly: Bool = false) {
         guard CGPreflightScreenCaptureAccess() else {
             needsScreenPermission = true
             section = .clips
@@ -69,7 +77,7 @@ final class CaptureController: ObservableObject {
                 isBuffering = true
             } catch {
                 if CGPreflightScreenCaptureAccess() {
-                    present(error)
+                    if !quietly { present(error) }
                 } else {
                     needsScreenPermission = true
                 }
@@ -105,6 +113,7 @@ final class CaptureController: ObservableObject {
     }
 
     func stopBuffer() {
+        autoStartedBundleID = nil
         Task {
             await replay.stop()
             isBuffering = false
@@ -141,6 +150,7 @@ final class CaptureController: ObservableObject {
                 try await replay.saveClip(to: url)
                 let capture = Capture(kind: .clip, fileURL: url, createdAt: Date())
                 Library.setSource(source, for: capture)
+                if let source { Preferences.shared.remember(source) }
                 finish(capture)
             } catch {
                 present(error)
@@ -206,6 +216,52 @@ final class CaptureController: ObservableObject {
 
     func showResult(for capture: Capture) {
         resultPanel.show(capture)
+    }
+
+    private func watchForAutoClipApps() {
+        let center = NSWorkspace.shared.notificationCenter
+        workspaceObservers = [
+            center.addObserver(forName: NSWorkspace.didLaunchApplicationNotification, object: nil, queue: .main) { [weak self] note in
+                guard let id = (note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)?.bundleIdentifier else { return }
+                Task { @MainActor in self?.appLaunched(id) }
+            },
+            center.addObserver(forName: NSWorkspace.didTerminateApplicationNotification, object: nil, queue: .main) { [weak self] note in
+                guard let id = (note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)?.bundleIdentifier else { return }
+                Task { @MainActor in self?.appTerminated(id) }
+            },
+        ]
+    }
+
+    // A game can take a while after launch before it has a window to record, so
+    // this waits for one before switching the buffer over to it.
+    private func appLaunched(_ bundleID: String) {
+        let prefs = Preferences.shared
+        guard prefs.autoClipApps.contains(bundleID), CGPreflightScreenCaptureAccess() else { return }
+        if isBuffering, prefs.captureSource == .screen || (prefs.captureSource == .app && prefs.captureAppID == bundleID) {
+            return
+        }
+        Task {
+            for _ in 0..<30 {
+                if await CaptureTarget.isRunning(bundleID) { break }
+                try? await Task.sleep(for: .seconds(2))
+            }
+            guard await CaptureTarget.isRunning(bundleID) else { return }
+            prefs.captureSource = .app
+            prefs.captureAppID = bundleID
+            if isBuffering {
+                await replay.stop()
+                isBuffering = false
+                bufferStartedAt = nil
+            }
+            autoStartedBundleID = bundleID
+            startBuffer(quietly: true)
+            refreshCaptureOptions()
+        }
+    }
+
+    private func appTerminated(_ bundleID: String) {
+        guard autoStartedBundleID == bundleID else { return }
+        stopBuffer()
     }
 
     // The game a clip came from: the picked app or window when recording one,

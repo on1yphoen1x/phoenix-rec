@@ -36,6 +36,7 @@ enum AudioSource: String, CaseIterable, Identifiable {
 struct CaptureOption: Identifiable, Hashable {
     let id: String
     let name: String
+    var isRunning = true
 }
 
 struct CaptureOptions {
@@ -51,7 +52,7 @@ enum CaptureTargetError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .noDisplay: "Couldn't find a display to record."
-        case .missing(let what): "\(what) isn't open any more. Pick something else to record in Flint."
+        case .missing(let what): "\(what) isn't open. Open it first, or turn on Auto-clip for it in Flint's clip settings."
         }
     }
 }
@@ -71,7 +72,7 @@ enum CaptureTarget {
     }
 
     static func options() async throws -> CaptureOptions {
-        let content = try await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: true)
+        let content = try await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: false)
         let names = await displayNames()
 
         let windows = recordableWindows(in: content)
@@ -79,23 +80,36 @@ enum CaptureTarget {
             CaptureOption(id: String(display.displayID),
                           name: names[display.displayID] ?? "Display \(index + 1)")
         }
-        let windowOptions = windows.map { window in
-            CaptureOption(id: windowID(bundleID: window.owningApplication?.bundleIdentifier ?? "", title: window.title ?? ""),
-                          name: "\(window.owningApplication?.applicationName ?? "App") \u{00B7} \(window.title ?? "")")
-        }
+        var seenWindows = Set<String>()
+        let windowOptions = windows
+            .map { window in
+                CaptureOption(id: windowID(bundleID: window.owningApplication?.bundleIdentifier ?? "", title: window.title ?? ""),
+                              name: windowName(window))
+            }
+            .filter { seenWindows.insert($0.id).inserted }
 
         var seen = Set<String>()
         let apps = windows.compactMap { $0.owningApplication }
             .filter { seen.insert($0.bundleIdentifier).inserted }
             .map { CaptureOption(id: $0.bundleIdentifier, name: $0.applicationName) }
             .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        let closed = Preferences.shared.rememberedApps
+            .filter { remembered in !apps.contains { $0.id == remembered.bundleID } }
+            .map { CaptureOption(id: $0.bundleID, name: $0.name, isRunning: false) }
 
-        return CaptureOptions(displays: displays, windows: windowOptions, apps: apps)
+        return CaptureOptions(displays: displays, windows: windowOptions, apps: apps + closed)
+    }
+
+    static func isRunning(_ bundleID: String) async -> Bool {
+        guard let content = try? await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: false) else {
+            return false
+        }
+        return recordableWindows(in: content).contains { $0.owningApplication?.bundleIdentifier == bundleID }
     }
 
     static func resolve() async throws -> Resolved {
         let prefs = Preferences.shared
-        let content = try await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: true)
+        let content = try await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: false)
         let names = await displayNames()
         let mainID = await MainActor.run {
             NSScreen.main?.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID
@@ -125,7 +139,7 @@ enum CaptureTarget {
                 throw CaptureTargetError.missing(title.isEmpty ? "The window you picked" : "\"\(title)\"")
             }
             video = SCContentFilter(desktopIndependentWindow: window)
-            label = window.title ?? "Window"
+            label = windowName(window)
         case .app:
             guard let app = content.applications.first(where: { $0.bundleIdentifier == prefs.captureAppID }) else {
                 throw CaptureTargetError.missing("The app you picked")
@@ -151,14 +165,23 @@ enum CaptureTarget {
         return Resolved(video: video, audio: audio, label: label)
     }
 
+    // Off-screen windows count too: a game in full screen sits in its own Space,
+    // so it is "off screen" whenever Flint's window is in front. Games like Roblox
+    // can also leave their window title empty, so the app name stands in for it.
     private static func recordableWindows(in content: SCShareableContent) -> [SCWindow] {
         content.windows.filter { window in
             guard let app = window.owningApplication,
+                  !app.bundleIdentifier.isEmpty,
                   app.bundleIdentifier != Bundle.main.bundleIdentifier,
-                  window.windowLayer == 0,
-                  let title = window.title, !title.isEmpty else { return false }
+                  window.windowLayer == 0 else { return false }
             return window.frame.width >= 200 && window.frame.height >= 150
         }
+    }
+
+    private static func windowName(_ window: SCWindow) -> String {
+        let app = window.owningApplication?.applicationName ?? "App"
+        guard let title = window.title, !title.isEmpty, title != app else { return app }
+        return "\(app) \u{00B7} \(title)"
     }
 
     private static func displayShowing(_ app: SCRunningApplication, in content: SCShareableContent) -> SCDisplay? {

@@ -14,6 +14,8 @@ struct ClippingSetupSheet: View {
     @State private var audioSource = Preferences.shared.audioSource
     @State private var audioAppID = Preferences.shared.audioAppID
     @State private var search = ""
+    @State private var autoClipApps = Preferences.shared.autoClipApps
+    @State private var remembered = Preferences.shared.rememberedApps
 
     var body: some View {
         VStack(spacing: 0) {
@@ -25,6 +27,7 @@ struct ClippingSetupSheet: View {
                         targetListSection
                             .transition(.move(edge: .top).combined(with: .opacity))
                     }
+                    autoClipSection
                 }
                 .padding(20)
                 .animation(.easeOut(duration: 0.2), value: source)
@@ -33,8 +36,7 @@ struct ClippingSetupSheet: View {
 
             VStack(spacing: 10) {
                 Button(action: start) {
-                    Label(controller.isBuffering ? "Done" : "Start Clipping",
-                          systemImage: controller.isBuffering ? "checkmark" : "record.circle")
+                    Label(startTitle, systemImage: controller.isBuffering ? "checkmark" : "record.circle")
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(theme.onAccent)
                         .frame(maxWidth: .infinity)
@@ -77,14 +79,27 @@ struct ClippingSetupSheet: View {
             controller.restartBufferIfRunning()
         }
         .onChange(of: displayID) { _, value in save { $0.captureDisplayID = value } }
-        .onChange(of: windowID) { _, value in save { $0.captureWindowID = value } }
-        .onChange(of: appID) { _, value in save { $0.captureAppID = value } }
+        .onChange(of: windowID) { _, value in
+            save { $0.captureWindowID = value }
+            remember(bundleID: String(value.split(separator: "\u{1F}").first ?? ""))
+        }
+        .onChange(of: appID) { _, value in
+            if controller.captureOptions.apps.contains(where: { $0.id == value && !$0.isRunning }) {
+                Preferences.shared.captureAppID = value
+            } else {
+                save { $0.captureAppID = value }
+                remember(bundleID: value)
+            }
+        }
         .onChange(of: audioSource) { _, value in
             Preferences.shared.audioSource = value
             fillDefaultTarget()
             controller.restartBufferIfRunning()
         }
-        .onChange(of: audioAppID) { _, value in save { $0.audioAppID = value } }
+        .onChange(of: audioAppID) { _, value in
+            save { $0.audioAppID = value }
+            remember(bundleID: value)
+        }
         .onChange(of: controller.captureOptions.apps) { _, _ in fillDefaultTarget() }
     }
 
@@ -108,7 +123,7 @@ struct ClippingSetupSheet: View {
             }
             if audioSource == .app {
                 SetupRow(symbol: "app.badge", title: "Audio From") {
-                    menuPicker(selection: $audioAppID, options: controller.captureOptions.apps, placeholder: "Choose an app")
+                    menuPicker(selection: $audioAppID, options: runningApps, placeholder: "Choose an app")
                 }
             }
             SetupRow(symbol: controller.recordsMicrophone ? "mic" : "mic.slash", title: "Microphone") {
@@ -157,7 +172,7 @@ struct ClippingSetupSheet: View {
                     ProgressView().controlSize(.small)
                     Text(source == .window ? "Loading windows..." : "Loading apps...")
                 } else {
-                    Text(search.isEmpty ? "Nothing open to record." : "Nothing matches \"\(search)\".")
+                    Text(search.isEmpty ? "Nothing open to record. If a game is missing, open it and press refresh." : "Nothing matches \"\(search)\".")
                 }
             }
             .font(.callout)
@@ -170,6 +185,11 @@ struct ClippingSetupSheet: View {
                     TargetRow(option: option, bundleID: bundleID(of: option),
                               isSelected: option.id == selectedTarget.wrappedValue) {
                         selectedTarget.wrappedValue = option.id
+                    }
+                    .contextMenu {
+                        if !option.isRunning {
+                            Button("Forget \(option.name)") { forget(option.id) }
+                        }
                     }
                 }
             }
@@ -201,11 +221,96 @@ struct ClippingSetupSheet: View {
         source == .window ? String(option.id.split(separator: "\u{1F}").first ?? "") : option.id
     }
 
+    private var runningApps: [CaptureOption] {
+        controller.captureOptions.apps.filter(\.isRunning)
+    }
+
+    private var selectedAppIsClosed: Bool {
+        source == .app && controller.captureOptions.apps.contains { $0.id == appID && !$0.isRunning }
+    }
+
+    private var startTitle: String {
+        if controller.isBuffering { return "Done" }
+        return selectedAppIsClosed ? "Clip It When It Opens" : "Start Clipping"
+    }
+
     private func start() {
-        if !controller.isBuffering {
+        if selectedAppIsClosed {
+            setAutoClip(appID, on: true)
+        } else if !controller.isBuffering {
             controller.startBuffer()
         }
         dismiss()
+    }
+
+    private var autoClipSection: some View {
+        let apps = remembered
+        return SetupSection {
+            SetupRow(symbol: "bolt.circle", title: "Auto-clip",
+                     subtitle: "Start clipping when these open, and stop when they close") {
+                EmptyView()
+            }
+            if apps.isEmpty {
+                Text("Apps you pick above or save clips from show up here, even after you close them.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            } else {
+                VStack(spacing: 2) {
+                    ForEach(apps, id: \.bundleID) { app in
+                        let isRunning = runningApps.contains { $0.id == app.bundleID }
+                        HStack(spacing: 10) {
+                            Image(nsImage: AppIconCache.icon(for: app.bundleID))
+                                .resizable()
+                                .frame(width: 22, height: 22)
+                            Text(app.name)
+                                .lineLimit(1)
+                            Text(isRunning ? "Open" : "Not open")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Spacer(minLength: 8)
+                            Toggle("", isOn: Binding(
+                                get: { autoClipApps.contains(app.bundleID) },
+                                set: { setAutoClip(app.bundleID, on: $0) }
+                            ))
+                            .toggleStyle(.switch)
+                            .controlSize(.small)
+                            .labelsHidden()
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .contextMenu {
+                            Button("Forget \(app.name)") { forget(app.bundleID) }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func setAutoClip(_ bundleID: String, on: Bool) {
+        if on {
+            autoClipApps.insert(bundleID)
+        } else {
+            autoClipApps.remove(bundleID)
+        }
+        Preferences.shared.autoClipApps = autoClipApps
+        if on, let app = controller.captureOptions.apps.first(where: { $0.id == bundleID }), app.isRunning {
+            Preferences.shared.remember(Library.Source(bundleID: app.id, name: app.name))
+            remembered = Preferences.shared.rememberedApps
+        }
+    }
+
+    private func remember(bundleID: String) {
+        guard let app = runningApps.first(where: { $0.id == bundleID }) else { return }
+        Preferences.shared.remember(Library.Source(bundleID: app.id, name: app.name))
+        remembered = Preferences.shared.rememberedApps
+    }
+
+    private func forget(_ bundleID: String) {
+        Preferences.shared.forget(bundleID)
+        autoClipApps = Preferences.shared.autoClipApps
+        remembered = Preferences.shared.rememberedApps
+        controller.refreshCaptureOptions()
     }
 
     private func menuPicker(selection: Binding<String>, options: [CaptureOption], placeholder: String) -> some View {
@@ -228,10 +333,10 @@ struct ClippingSetupSheet: View {
         if source == .window, !options.windows.contains(where: { $0.id == windowID }), let first = options.windows.first {
             windowID = first.id
         }
-        if source == .app, !options.apps.contains(where: { $0.id == appID }), let first = options.apps.first {
+        if source == .app, !options.apps.contains(where: { $0.id == appID }), let first = options.apps.first(where: \.isRunning) {
             appID = first.id
         }
-        if audioSource == .app, !options.apps.contains(where: { $0.id == audioAppID }), let first = options.apps.first {
+        if audioSource == .app, !runningApps.contains(where: { $0.id == audioAppID }), let first = runningApps.first {
             audioAppID = first.id
         }
     }
@@ -342,6 +447,12 @@ struct TargetRow: View {
                 Text(option.name)
                     .lineLimit(1)
                     .truncationMode(.middle)
+                    .foregroundStyle(option.isRunning ? Color.primary : Color.secondary)
+                if !option.isRunning {
+                    Text("Not open")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 Spacer(minLength: 8)
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")

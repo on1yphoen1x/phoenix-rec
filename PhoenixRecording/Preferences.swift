@@ -94,6 +94,33 @@ final class Preferences {
         set { defaults.set(newValue, forKey: "audioAppID") }
     }
 
+    // Apps the user has picked or clipped before, newest first, so they can be
+    // chosen again after they quit.
+    var rememberedApps: [Library.Source] {
+        get {
+            let pairs = defaults.array(forKey: "rememberedApps") as? [[String]] ?? []
+            return pairs.compactMap { $0.count == 2 ? Library.Source(bundleID: $0[0], name: $0[1]) : nil }
+        }
+        set { defaults.set(newValue.map { [$0.bundleID, $0.name] }, forKey: "rememberedApps") }
+    }
+
+    func remember(_ app: Library.Source) {
+        guard !app.bundleID.isEmpty, app.bundleID != Bundle.main.bundleIdentifier else { return }
+        var apps = rememberedApps.filter { $0.bundleID != app.bundleID }
+        apps.insert(app, at: 0)
+        rememberedApps = Array(apps.prefix(40))
+    }
+
+    func forget(_ bundleID: String) {
+        rememberedApps = rememberedApps.filter { $0.bundleID != bundleID }
+        autoClipApps.remove(bundleID)
+    }
+
+    var autoClipApps: Set<String> {
+        get { Set(defaults.stringArray(forKey: "autoClipApps") ?? []) }
+        set { defaults.set(Array(newValue).sorted(), forKey: "autoClipApps") }
+    }
+
     var startsBufferOnLaunch: Bool {
         get { defaults.object(forKey: "startsBufferOnLaunch") as? Bool ?? true }
         set { defaults.set(newValue, forKey: "startsBufferOnLaunch") }
