@@ -4,7 +4,11 @@ import SwiftUI
 
 @MainActor
 final class CaptureController: ObservableObject {
-    @Published private(set) var isBuffering = false
+    @Published private(set) var isBuffering = false {
+        didSet {
+            if isBuffering != oldValue { publishRecordingState() }
+        }
+    }
     @Published private(set) var isRecording = false
     @Published private(set) var isRecordingPaused = false
     @Published private(set) var isSavingClip = false
@@ -56,6 +60,8 @@ final class CaptureController: ObservableObject {
             case .resume: resumeRecording()
             case .stop: if isRecording { stopRecording() }
             case .status: publishRecordingState()
+            case .clip: saveClip()
+            case .record: if !isRecording { startRecording() }
             }
         }
         watchForAutoClipApps()
@@ -253,7 +259,7 @@ final class CaptureController: ObservableObject {
 
     private func publishRecordingState() {
         let state: RecordingBridge.State = !isRecording ? .idle : isRecordingPaused ? .paused : .recording
-        bridge.publish(state, elapsed: isRecording ? recordingElapsed : 0)
+        bridge.publish(state, elapsed: isRecording ? recordingElapsed : 0, isClipping: isBuffering)
     }
 
     func reloadLibrary() {
@@ -354,6 +360,9 @@ final class CaptureController: ObservableObject {
 
     private func finish(_ capture: Capture) {
         lastCapture = capture
+        if capture.kind == .clip {
+            bridge.announceClipSaved()
+        }
         reloadLibrary()
         if Preferences.shared.copiesAfterCapture {
             Clipboard.copyFile(capture)
