@@ -6,7 +6,7 @@ struct PhoenixApp: App {
     @StateObject private var updater = Updater()
 
     var body: some Scene {
-        Window("Flint", id: "main") {
+        Window("Ember", id: "main") {
             MainView(controller: controller, updater: updater)
         }
         .windowStyle(.hiddenTitleBar)

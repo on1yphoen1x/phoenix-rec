@@ -177,7 +177,7 @@ function renderViewer({ id, fileURL, pageURL, contentType, uploaded, size }) {
 
   const html = page({
     title: `${title} ${id}`,
-    head: `<meta property="og:title" content="${title} shared from Flint">
+    head: `<meta property="og:title" content="${title} shared from Ember">
 <meta property="og:url" content="${pageURL}">
 ${meta}`,
     main: `<main class="clip">
@@ -205,10 +205,10 @@ function renderNotFound() {
 
 function renderHome() {
   return htmlResponse(page({
-    title: "Flint",
+    title: "Ember",
     main: `<main class="page">
-<h1 class="page__title">Flint</h1>
-<p>Flint is a Mac app that keeps the last few seconds of your screen so you can save a clip after something happens. Clips and screenshots shared from it are hosted here.</p>
+<h1 class="page__title">Ember</h1>
+<p>Ember is a Mac app that keeps the last few seconds of your screen so you can save a clip after something happens. Clips and screenshots shared from it are hosted here.</p>
 <p>Nothing is uploaded unless someone presses Copy Link on a capture.</p>
 </main>`,
   }));
@@ -219,7 +219,7 @@ function renderPrivacy() {
     title: "Privacy Policy",
     main: `<main class="page">
 <h1 class="page__title">Privacy Policy</h1>
-<p>This site stores the clips and screenshots that Flint users choose to share, and serves them to anyone with the link.</p>
+<p>This site stores the clips and screenshots that Ember users choose to share, and serves them to anyone with the link.</p>
 <ul>
 <li>No accounts, analytics, advertising or tracking cookies.</li>
 <li>Your browser keeps one local setting so the cookie notice is only shown once.</li>
@@ -272,7 +272,7 @@ function isAuthorised(request, env) {
 }
 
 async function upload(request, env) {
-  if (!isAuthorised(request, env)) return json({ error: "The upload token is wrong. Check it in Flint's Settings." }, 401);
+  if (!isAuthorised(request, env)) return json({ error: "The upload token is wrong. Check it in Ember's Settings." }, 401);
 
   const contentType = request.headers.get("Content-Type") ?? "";
   if (!allowedTypes.includes(contentType)) {
