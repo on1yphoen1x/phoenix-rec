@@ -4,7 +4,7 @@ import Foundation
 @MainActor
 final class RecordingBridge {
     enum Command: String {
-        case pause, resume, stop, status
+        case pause, resume, stop, status, clip, record
     }
 
     enum State: String {
@@ -13,6 +13,7 @@ final class RecordingBridge {
 
     static let stateName = Notification.Name("app.phoenixclips.ember.recordingState")
     static let commandName = Notification.Name("app.phoenixclips.ember.command")
+    static let clipSavedName = Notification.Name("app.phoenixclips.ember.clipSaved")
 
     var onCommand: ((Command) -> Void)?
     private var observer: NSObjectProtocol?
@@ -27,12 +28,23 @@ final class RecordingBridge {
         }
     }
 
-    func publish(_ state: State, elapsed: TimeInterval) {
+    func publish(_ state: State, elapsed: TimeInterval, isClipping: Bool) {
         DistributedNotificationCenter.default().postNotificationName(
             Self.stateName,
             object: nil,
-            userInfo: ["state": state.rawValue, "elapsed": elapsed, "sentAt": Date().timeIntervalSince1970],
+            userInfo: [
+                "state": state.rawValue,
+                "elapsed": elapsed,
+                "sentAt": Date().timeIntervalSince1970,
+                "clipping": isClipping,
+            ],
             deliverImmediately: true
+        )
+    }
+
+    func announceClipSaved() {
+        DistributedNotificationCenter.default().postNotificationName(
+            Self.clipSavedName, object: nil, userInfo: nil, deliverImmediately: true
         )
     }
 }
