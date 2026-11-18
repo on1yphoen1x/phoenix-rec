@@ -6,6 +6,7 @@ import SwiftUI
 final class CaptureController: ObservableObject {
     @Published private(set) var isBuffering = false
     @Published private(set) var isRecording = false
+    @Published private(set) var isRecordingPaused = false
     @Published private(set) var isSavingClip = false
     @Published private(set) var needsScreenPermission = false
     @Published private(set) var isStartingBuffer = false
@@ -30,6 +31,10 @@ final class CaptureController: ObservableObject {
     private var hotKeys: [HotKey] = []
     private var workspaceObservers: [NSObjectProtocol] = []
     private var autoStartedBundleID: String?
+    private let bridge = RecordingBridge()
+    private var recordedBeforePause: TimeInterval = 0
+    private var recordingResumedAt: Date?
+    private var recorderTask: Task<Void, Never>?
 
     init() {
         Preferences.shared.migrateDefaultFolder()
@@ -42,6 +47,15 @@ final class CaptureController: ObservableObject {
                 self?.isBuffering = false
                 self?.bufferStartedAt = nil
                 self?.present(error)
+            }
+        }
+        bridge.onCommand = { [weak self] command in
+            guard let self else { return }
+            switch command {
+            case .pause: pauseRecording()
+            case .resume: resumeRecording()
+            case .stop: if isRecording { stopRecording() }
+            case .status: publishRecordingState()
             }
         }
         watchForAutoClipApps()
@@ -178,6 +192,10 @@ final class CaptureController: ObservableObject {
                 let url = Capture.newFileURL(kind: .recording, in: folder)
                 try await recorder.start(to: url, includeMicrophone: recordsMicrophone)
                 isRecording = true
+                isRecordingPaused = false
+                recordedBeforePause = 0
+                recordingResumedAt = Date()
+                publishRecordingState()
             } catch RecordingService.RecordingError.cancelled {
                 return
             } catch {
@@ -186,17 +204,56 @@ final class CaptureController: ObservableObject {
         }
     }
 
+    var recordingElapsed: TimeInterval {
+        recordedBeforePause + (recordingResumedAt.map { Date().timeIntervalSince($0) } ?? 0)
+    }
+
+    func pauseRecording() {
+        guard isRecording, !isRecordingPaused else { return }
+        recordedBeforePause = recordingElapsed
+        recordingResumedAt = nil
+        isRecordingPaused = true
+        publishRecordingState()
+        runInOrder { try await $0.pause() }
+    }
+
+    func resumeRecording() {
+        guard isRecording, isRecordingPaused else { return }
+        recordingResumedAt = Date()
+        isRecordingPaused = false
+        publishRecordingState()
+        runInOrder { try $0.resume() }
+    }
+
     func stopRecording() {
-        Task {
+        isRecording = false
+        isRecordingPaused = false
+        recordingResumedAt = nil
+        publishRecordingState()
+        runInOrder { [weak self] recorder in
+            let url = try await recorder.stop()
+            self?.finish(Capture(kind: .recording, fileURL: url, createdAt: Date()))
+        }
+    }
+
+    // Pause, resume and stop each wait for the previous one, because a pause
+    // only finishes once its file has been written.
+    private func runInOrder(_ step: @escaping (RecordingService) async throws -> Void) {
+        let previous = recorderTask
+        let recorder = recorder
+        recorderTask = Task { [weak self] in
+            await previous?.value
             do {
-                let url = try await recorder.stop()
-                isRecording = false
-                finish(Capture(kind: .recording, fileURL: url, createdAt: Date()))
+                try await step(recorder)
             } catch {
-                isRecording = false
-                present(error)
+                self?.present(error)
             }
         }
+    }
+
+    private func publishRecordingState() {
+        let state: RecordingBridge.State = !isRecording ? .idle : isRecordingPaused ? .paused : .recording
+        bridge.publish(state, elapsed: isRecording ? recordingElapsed : 0)
     }
 
     func reloadLibrary() {
