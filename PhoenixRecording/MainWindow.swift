@@ -103,7 +103,7 @@ struct TopBar: View {
                 Image(nsImage: NSApp.applicationIconImage)
                     .resizable()
                     .frame(width: 24, height: 24)
-                Text("FLINT")
+                Text("EMBER")
                     .font(.system(size: 14, weight: .bold))
                     .tracking(1.2)
             }
