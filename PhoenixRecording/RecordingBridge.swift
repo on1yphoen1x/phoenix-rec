@@ -4,7 +4,7 @@ import Foundation
 @MainActor
 final class RecordingBridge {
     enum Command: String {
-        case pause, resume, stop, status, clip, record
+        case pause, resume, stop, status, clip, record, startClipping, stopClipping
     }
 
     enum State: String {
@@ -28,7 +28,7 @@ final class RecordingBridge {
         }
     }
 
-    func publish(_ state: State, elapsed: TimeInterval, isClipping: Bool) {
+    func publish(_ state: State, elapsed: TimeInterval, clippingSince: Date?) {
         DistributedNotificationCenter.default().postNotificationName(
             Self.stateName,
             object: nil,
@@ -36,7 +36,8 @@ final class RecordingBridge {
                 "state": state.rawValue,
                 "elapsed": elapsed,
                 "sentAt": Date().timeIntervalSince1970,
-                "clipping": isClipping,
+                "clipping": clippingSince != nil,
+                "clippingSince": clippingSince?.timeIntervalSince1970 ?? 0,
             ],
             deliverImmediately: true
         )
