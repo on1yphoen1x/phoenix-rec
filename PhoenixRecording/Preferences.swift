@@ -12,7 +12,10 @@ final class Preferences {
                 return URL(fileURLWithPath: path, isDirectory: true)
             }
             let movies = FileManager.default.urls(for: .moviesDirectory, in: .userDomainMask)[0]
-            return movies.appendingPathComponent("Flint", isDirectory: true)
+            // Clips saved while the app was called Flint stay where they are.
+            let earlier = movies.appendingPathComponent("Flint", isDirectory: true)
+            if FileManager.default.fileExists(atPath: earlier.path) { return earlier }
+            return movies.appendingPathComponent("Ember", isDirectory: true)
         }
         set { defaults.set(newValue.path, forKey: "saveFolder") }
     }

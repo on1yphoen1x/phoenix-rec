@@ -49,7 +49,7 @@ struct ClippingSetupSheet: View {
                 .disabled(!canStart)
                 .opacity(canStart ? 1 : 0.5)
 
-                Text("Flint keeps the last \(Preferences.shared.clipSeconds) seconds while clipping is on. Press \u{2325}\u{21E7}C to save them.")
+                Text("Ember keeps the last \(Preferences.shared.clipSeconds) seconds while clipping is on. Press \u{2325}\u{21E7}C to save them.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)

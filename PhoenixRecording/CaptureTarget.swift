@@ -52,7 +52,7 @@ enum CaptureTargetError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .noDisplay: "Couldn't find a display to record."
-        case .missing(let what): "\(what) isn't open. Open it first, or turn on Auto-clip for it in Flint's clip settings."
+        case .missing(let what): "\(what) isn't open. Open it first, or turn on Auto-clip for it in Ember's clip settings."
         }
     }
 }
@@ -166,7 +166,7 @@ enum CaptureTarget {
     }
 
     // Off-screen windows count too: a game in full screen sits in its own Space,
-    // so it is "off screen" whenever Flint's window is in front. Games like Roblox
+    // so it is "off screen" whenever Ember's window is in front. Games like Roblox
     // can also leave their window title empty, so the app name stands in for it.
     private static func recordableWindows(in content: SCShareableContent) -> [SCWindow] {
         content.windows.filter { window in

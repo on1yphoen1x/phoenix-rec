@@ -305,9 +305,9 @@ struct PermissionBanner: View {
                 .frame(width: 38, height: 38)
                 .background(theme.accent.opacity(0.15), in: RoundedRectangle(cornerRadius: 8))
             VStack(alignment: .leading, spacing: 2) {
-                Text("Flint needs Screen Recording permission")
+                Text("Ember needs Screen Recording permission")
                     .font(.callout.weight(.semibold))
-                Text("Turn on Flint in System Settings, then reopen it. You only need to do this once.")
+                Text("Turn on Ember in System Settings, then reopen it. You only need to do this once.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

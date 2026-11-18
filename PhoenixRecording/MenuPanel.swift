@@ -39,7 +39,7 @@ struct MenuPanel: View {
 
             VStack(spacing: 8) {
                 if controller.needsScreenPermission {
-                    PanelRow(symbol: "lock.shield", title: "Allow Screen Recording", subtitle: "Flint can't record until you allow it") {
+                    PanelRow(symbol: "lock.shield", title: "Allow Screen Recording", subtitle: "Ember can't record until you allow it") {
                         showMainWindow(.clips)
                         controller.requestScreenPermission()
                     }
@@ -53,7 +53,7 @@ struct MenuPanel: View {
                     }
                     .disabled(updater.isInstalling)
                 }
-                PanelRow(symbol: "macwindow", title: "Open Flint", subtitle: "Show the main window") {
+                PanelRow(symbol: "macwindow", title: "Open Ember", subtitle: "Show the main window") {
                     showMainWindow(.clips)
                 }
                 PanelRow(symbol: "camera.viewfinder", title: "Take Screenshot", subtitle: "Drag over an area, or \u{2325}\u{21E7}4") {
@@ -95,7 +95,7 @@ struct MenuPanel: View {
                 .resizable()
                 .frame(width: 44, height: 44)
             VStack(alignment: .leading, spacing: 2) {
-                Text("Flint")
+                Text("Ember")
                     .font(.system(size: 16, weight: .semibold))
                 Text(status)
                     .font(.callout)
@@ -132,7 +132,7 @@ struct MenuPanel: View {
             Button {
                 NSApp.terminate(nil)
             } label: {
-                Label("Quit Flint", systemImage: "power")
+                Label("Quit Ember", systemImage: "power")
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(theme.accent)
                     .padding(.horizontal, 12)

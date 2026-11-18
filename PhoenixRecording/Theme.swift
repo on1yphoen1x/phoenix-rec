@@ -106,7 +106,7 @@ extension Theme {
         Theme(id: "dusk", name: "Dusk", family: .classic, isDark: true,
               accent: Color(hex: 0xB07CF2), sidebarTop: Color(hex: 0x1F1630), sidebarBottom: Color(hex: 0x2F1F48),
               background: Color(hex: 0x15111F), surface: Color(hex: 0x1D1729), border: Color(hex: 0x2D2340)),
-        Theme(id: "graphite", name: "Flint", family: .classic, isDark: true,
+        Theme(id: "graphite", name: "Graphite", family: .classic, isDark: true,
               accent: Color(hex: 0xB8BEC8), sidebarTop: Color(hex: 0x1C1D20), sidebarBottom: Color(hex: 0x2A2C30),
               background: Color(hex: 0x141517), surface: Color(hex: 0x1C1D20), border: Color(hex: 0x2C2E33)),
         Theme(id: "paper", name: "Paper", family: .classic, isDark: false,

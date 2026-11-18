@@ -49,22 +49,23 @@ jobs:
           sudo security add-trusted-cert -d -r trustRoot -p codeSign -k /Library/Keychains/System.keychain "$RUNNER_TEMP/sign.pem"
           codesign --force --timestamp=none --keychain "$KC" --sign "Ember Self-Signed" \
             --entitlements PhoenixRecording/PhoenixRecording.entitlements \
-            build/Build/Products/Release/Flint.app
-          codesign -dr - build/Build/Products/Release/Flint.app
+            build/Build/Products/Release/Ember.app
+          codesign -dr - build/Build/Products/Release/Ember.app
 
       - name: Package
-        # Phoenix.zip keeps the oldest bundle name. Copies from before either
-        # rename look for it when they can't find their own zip.
+        # Copies from before each rename look for their own zip name, so the
+        # same app is published under every name the updater has used.
         run: |
-          ditto -c -k --keepParent build/Build/Products/Release/Flint.app Flint.zip
+          ditto -c -k --keepParent build/Build/Products/Release/Ember.app Ember.zip
+          cp Ember.zip Flint.zip
           mkdir legacy
-          ditto build/Build/Products/Release/Flint.app legacy/PhoenixRecording.app
+          ditto build/Build/Products/Release/Ember.app legacy/PhoenixRecording.app
           ditto -c -k --keepParent legacy/PhoenixRecording.app Phoenix.zip
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Flint
-          path: Flint.zip
+          name: Ember
+          path: Ember.zip
 
       - name: Publish release
         if: github.ref == 'refs/heads/main'
@@ -72,9 +73,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          gh release create "build-${{ github.run_number }}" Flint.zip Phoenix.zip \
-            --title "Flint build ${{ github.run_number }}" \
-            --notes "Download Flint.zip, unzip it, drag Flint into Applications and open it." \
+          gh release create "build-${{ github.run_number }}" Ember.zip Flint.zip Phoenix.zip \
+            --title "Ember build ${{ github.run_number }}" \
+            --notes "Download Ember.zip, unzip it, drag Ember into Applications and open it." \
             --target "${{ github.sha }}" --latest
           gh release list --limit 100 --json tagName --jq '.[].tagName' \
             | grep -v "^build-${{ github.run_number }}$" \
