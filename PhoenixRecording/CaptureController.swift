@@ -62,6 +62,8 @@ final class CaptureController: ObservableObject {
             case .status: publishRecordingState()
             case .clip: saveClip()
             case .record: if !isRecording { startRecording() }
+            case .startClipping: if !isBuffering { startBuffer() }
+            case .stopClipping: if isBuffering { stopBuffer() }
             }
         }
         watchForAutoClipApps()
@@ -259,7 +261,7 @@ final class CaptureController: ObservableObject {
 
     private func publishRecordingState() {
         let state: RecordingBridge.State = !isRecording ? .idle : isRecordingPaused ? .paused : .recording
-        bridge.publish(state, elapsed: isRecording ? recordingElapsed : 0, isClipping: isBuffering)
+        bridge.publish(state, elapsed: isRecording ? recordingElapsed : 0, clippingSince: isBuffering ? bufferStartedAt : nil)
     }
 
     func reloadLibrary() {
