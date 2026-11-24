@@ -69,6 +69,10 @@ final class ReplayBuffer: NSObject {
     private var includeMicrophone = false
 
     var onStop: ((Error) -> Void)?
+    var onHighlight: (() -> Void)?
+    var detectsHighlights = true
+
+    private var loudness = LoudnessDetector()
 
     override init() {
         workFolder = FileManager.default.temporaryDirectory.appendingPathComponent("ReplayBuffer", isDirectory: true)
@@ -129,6 +133,7 @@ final class ReplayBuffer: NSObject {
             self.includeMicrophone = includeMicrophone
             self.finished = []
             self.current = nil
+            self.loudness.reset()
         }
 
         try await stream.startCapture()
@@ -152,7 +157,9 @@ final class ReplayBuffer: NSObject {
         try? FileManager.default.removeItem(at: workFolder)
     }
 
-    func saveClip(to url: URL) async throws {
+    /// Saves the clip length of footage. With `endingAt`, the clip ends at that
+    /// moment rather than now, so a highlight from earlier in the buffer can be kept.
+    func saveClip(to url: URL, endingAt end: Date? = nil) async throws {
         guard stream != nil else { throw BufferError.notRunning }
 
         await closeSegment()
@@ -183,11 +190,13 @@ final class ReplayBuffer: NSObject {
             if let track { composition.removeTrack(track) }
         }
 
-        let start = max(.zero, cursor - length)
+        let lag = end.map { max(0, Date().timeIntervalSince($0)) } ?? 0
+        let clipEnd = max(CMTime(seconds: 1, preferredTimescale: 600), cursor - CMTime(seconds: lag, preferredTimescale: 600))
+        let start = max(.zero, clipEnd - length)
         guard let export = AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetPassthrough) else {
             throw BufferError.nothingRecorded
         }
-        export.timeRange = CMTimeRange(start: start, end: cursor)
+        export.timeRange = CMTimeRange(start: start, end: min(clipEnd, cursor))
         export.shouldOptimizeForNetworkUse = true
         try await export.export(to: url, as: .mp4)
     }
@@ -326,7 +335,11 @@ extension ReplayBuffer: SCStreamOutput, SCStreamDelegate {
         guard sampleBuffer.isValid else { return }
         switch type {
         case .screen: appendVideo(sampleBuffer)
-        case .audio: appendAudio(sampleBuffer, to: gameAudioInput)
+        case .audio:
+            appendAudio(sampleBuffer, to: gameAudioInput)
+            if detectsHighlights, loudness.process(sampleBuffer) {
+                onHighlight?()
+            }
         case .microphone: appendAudio(sampleBuffer, to: micInput)
         @unknown default: break
         }

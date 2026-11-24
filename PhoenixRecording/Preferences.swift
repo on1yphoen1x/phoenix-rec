@@ -124,6 +124,16 @@ final class Preferences {
         set { defaults.set(Array(newValue).sorted(), forKey: "autoClipApps") }
     }
 
+    var detectsHighlights: Bool {
+        get { defaults.object(forKey: "detectsHighlights") as? Bool ?? true }
+        set { defaults.set(newValue, forKey: "detectsHighlights") }
+    }
+
+    var autoSavesHighlights: Bool {
+        get { defaults.bool(forKey: "autoSavesHighlights") }
+        set { defaults.set(newValue, forKey: "autoSavesHighlights") }
+    }
+
     var startsBufferOnLaunch: Bool {
         get { defaults.object(forKey: "startsBufferOnLaunch") as? Bool ?? true }
         set { defaults.set(newValue, forKey: "startsBufferOnLaunch") }

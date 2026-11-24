@@ -17,7 +17,10 @@ final class CaptureController: ObservableObject {
     @Published private(set) var captureOptions = CaptureOptions()
     @Published private(set) var isLoadingOptions = false
     @Published private(set) var captureLabel = ""
-    @Published private(set) var bufferStartedAt: Date?
+    @Published private(set) var bufferStartedAt: Date? {
+        didSet { highlights = [] }
+    }
+    @Published private(set) var highlights: [Highlight] = []
     @Published private(set) var lastCapture: Capture?
     @Published private(set) var captures: [Capture] = []
     @Published var section = MainSection.clips
@@ -45,7 +48,11 @@ final class CaptureController: ObservableObject {
         hotKeys = [
             HotKey(keyCode: kVK_ANSI_C, modifiers: optionKey | shiftKey) { [weak self] in self?.saveClip() },
             HotKey(keyCode: kVK_ANSI_4, modifiers: optionKey | shiftKey) { [weak self] in self?.takeScreenshot(.area) },
+            HotKey(keyCode: kVK_ANSI_H, modifiers: optionKey | shiftKey) { [weak self] in self?.markHighlight() },
         ]
+        replay.onHighlight = { [weak self] in
+            Task { @MainActor in self?.addHighlight(.loud) }
+        }
         replay.onStop = { [weak self] error in
             Task { @MainActor in
                 self?.isBuffering = false
@@ -92,6 +99,7 @@ final class CaptureController: ObservableObject {
             do {
                 let prefs = Preferences.shared
                 let target = try await CaptureTarget.resolve()
+                replay.detectsHighlights = prefs.detectsHighlights
                 try await replay.start(seconds: prefs.clipSeconds, quality: prefs.clipQuality,
                                        includeMicrophone: recordsMicrophone, video: target.video, audio: target.audio)
                 captureLabel = target.label
@@ -153,7 +161,36 @@ final class CaptureController: ObservableObject {
         }
     }
 
-    func saveClip() {
+    func markHighlight() {
+        guard isBuffering else {
+            NSSound.beep()
+            return
+        }
+        addHighlight(.marked)
+        NSSound(named: "Tink")?.play()
+    }
+
+    /// Saves a clip that ends a few seconds after the highlight, so the moment
+    /// itself sits near the end with the build-up before it.
+    func saveClip(around highlight: Highlight) {
+        saveClip(endingAt: min(Date(), highlight.date.addingTimeInterval(5)))
+    }
+
+    private func addHighlight(_ kind: Highlight.Kind) {
+        guard isBuffering else { return }
+        let window = TimeInterval(Preferences.shared.clipSeconds)
+        highlights.removeAll { Date().timeIntervalSince($0.date) > window }
+        let highlight = Highlight(kind: kind, date: Date())
+        highlights.append(highlight)
+        if kind == .loud, Preferences.shared.autoSavesHighlights {
+            Task {
+                try? await Task.sleep(for: .seconds(5))
+                saveClip(endingAt: highlight.date.addingTimeInterval(5))
+            }
+        }
+    }
+
+    func saveClip(endingAt end: Date? = nil) {
         guard isBuffering, !isSavingClip else {
             if !isBuffering { NSSound.beep() }
             return
@@ -169,7 +206,7 @@ final class CaptureController: ObservableObject {
             do {
                 let folder = try Preferences.shared.ensureSaveFolder()
                 let url = Capture.newFileURL(kind: .clip, in: folder)
-                try await replay.saveClip(to: url)
+                try await replay.saveClip(to: url, endingAt: end)
                 let capture = Capture(kind: .clip, fileURL: url, createdAt: Date())
                 Library.setSource(source, for: capture)
                 if let source { Preferences.shared.remember(source) }

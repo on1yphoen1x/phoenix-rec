@@ -148,6 +148,8 @@ struct SettingsView: View {
     @State private var clipSeconds = Preferences.shared.clipSeconds
     @State private var clipQuality = Preferences.shared.clipQuality
     @State private var startsBufferOnLaunch = Preferences.shared.startsBufferOnLaunch
+    @State private var detectsHighlights = Preferences.shared.detectsHighlights
+    @State private var autoSavesHighlights = Preferences.shared.autoSavesHighlights
     @State private var opensAtLogin = SMAppService.mainApp.status == .enabled
     @State private var endpoint = Preferences.shared.uploadEndpoint?.absoluteString ?? ""
     @State private var token = Keychain.read("uploadToken") ?? ""
@@ -229,8 +231,29 @@ struct SettingsView: View {
             }
         }
 
+        SettingsCard(symbol: "waveform.badge.exclamationmark", title: "Highlights",
+                     subtitle: "Loud moments in the game audio are marked on the replay strip") {
+            SettingRow(title: "Mark loud moments automatically") {
+                Toggle("", isOn: $detectsHighlights).toggleStyle(.switch).labelsHidden()
+            }
+            .onChange(of: detectsHighlights) { _, value in
+                Preferences.shared.detectsHighlights = value
+                controller.restartBufferIfRunning()
+            }
+
+            SettingRow(title: "Save a clip for every loud moment",
+                       detail: "Each one is saved five seconds after it happens, so you never miss it") {
+                Toggle("", isOn: $autoSavesHighlights).toggleStyle(.switch).labelsHidden()
+            }
+            .disabled(!detectsHighlights)
+            .onChange(of: autoSavesHighlights) { _, value in
+                Preferences.shared.autoSavesHighlights = value
+            }
+        }
+
         SettingsCard(symbol: "keyboard", title: "Shortcuts", subtitle: "These work everywhere, including over full-screen games") {
             SettingRow(title: "Save clip") { KeyCaps(keys: ["\u{2325}", "\u{21E7}", "C"]) }
+            SettingRow(title: "Mark a highlight") { KeyCaps(keys: ["\u{2325}", "\u{21E7}", "H"]) }
             SettingRow(title: "Screenshot an area") { KeyCaps(keys: ["\u{2325}", "\u{21E7}", "4"]) }
         }
     }

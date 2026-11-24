@@ -526,6 +526,9 @@ struct LiveBufferCard: View {
                             .offset(x: 3)
                     }
                     .overlay {
+                        HighlightMarkers(controller: controller, now: context.date, total: total)
+                    }
+                    .overlay {
                         if !controller.isBuffering {
                             Text("Clipping is off. Start it and this fills with the last \(total) seconds.")
                                 .font(.callout)
@@ -542,6 +545,10 @@ struct LiveBufferCard: View {
                     }
                     .font(.system(size: 11, design: .monospaced))
                     .foregroundStyle(.tertiary)
+
+                    if controller.isBuffering {
+                        HighlightList(controller: controller, now: context.date, total: total)
+                    }
                 }
             }
         }
@@ -763,6 +770,100 @@ struct CaptureCard: View {
         Task {
             try? await Task.sleep(for: .seconds(3))
             if status == message { status = nil }
+        }
+    }
+}
+
+struct HighlightMarkers: View {
+    @ObservedObject var controller: CaptureController
+    let now: Date
+    let total: Int
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        GeometryReader { proxy in
+            ForEach(controller.highlights.filter { now.timeIntervalSince($0.date) < Double(total) }) { highlight in
+                let age = max(0, now.timeIntervalSince(highlight.date))
+                let x = proxy.size.width * (1 - age / Double(total))
+                Button {
+                    controller.saveClip(around: highlight)
+                } label: {
+                    VStack(spacing: 0) {
+                        Image(systemName: highlight.kind == .loud ? "waveform" : "flag.fill")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(theme.onAccent)
+                            .frame(width: 18, height: 18)
+                            .background(theme.accent, in: RoundedRectangle(cornerRadius: 4))
+                        Rectangle()
+                            .fill(theme.accent)
+                            .frame(width: 2)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("\(highlight.kind.title), \(Int(age)) seconds ago. Click to save a clip around it.")
+                .frame(width: 18, height: proxy.size.height + 10)
+                .position(x: min(max(9, x), proxy.size.width - 9), y: proxy.size.height / 2 - 5)
+            }
+        }
+        .animation(.easeOut(duration: 0.4), value: controller.highlights)
+    }
+}
+
+struct HighlightList: View {
+    @ObservedObject var controller: CaptureController
+    let now: Date
+    let total: Int
+    @Environment(\.theme) private var theme
+
+    private var visible: [Highlight] {
+        controller.highlights
+            .filter { now.timeIntervalSince($0.date) < Double(total) }
+            .reversed()
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text("Highlights")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.secondary)
+            if visible.isEmpty {
+                Text("Loud moments are marked here automatically. Press")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.tertiary)
+                KeyCaps(keys: ["\u{2325}", "\u{21E7}", "H"])
+                Text("to mark one yourself.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.tertiary)
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(visible) { highlight in
+                            Button {
+                                controller.saveClip(around: highlight)
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Image(systemName: highlight.kind == .loud ? "waveform" : "flag.fill")
+                                        .foregroundStyle(theme.accent)
+                                    Text(highlight.kind.title)
+                                    Text("-\(BufferMath.clock(Int(now.timeIntervalSince(highlight.date))))")
+                                        .font(.system(size: 11, design: .monospaced))
+                                        .foregroundStyle(.secondary)
+                                    Text("Save")
+                                        .fontWeight(.semibold)
+                                        .foregroundStyle(theme.accent)
+                                }
+                                .font(.system(size: 12))
+                                .lineLimit(1)
+                                .fixedSize()
+                            }
+                            .buttonStyle(QuietButtonStyle())
+                            .disabled(controller.isSavingClip)
+                        }
+                    }
+                }
+            }
+            Spacer(minLength: 0)
         }
     }
 }
